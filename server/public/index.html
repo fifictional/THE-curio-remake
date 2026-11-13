@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local API — walking skeleton</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 46rem;
+        margin: 3rem auto;
+        padding: 0 1.25rem;
+      }
+      h1 { font-size: 1.25rem; margin: 0 0 .25rem; }
+      p.sub { margin: 0 0 2rem; opacity: .65; font-size: .875rem; }
+      button {
+        font: inherit;
+        padding: .55rem 1rem;
+        border-radius: .5rem;
+        border: 1px solid #6366f1;
+        background: #6366f1;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled { opacity: .5; cursor: default; }
+      h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin: 2rem 0 .5rem; }
+      pre {
+        background: rgba(127,127,127,.12);
+        padding: .9rem 1rem;
+        border-radius: .5rem;
+        overflow: auto;
+        font-size: .8rem;
+        margin: 0;
+      }
+      .row { display: flex; gap: .5rem; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <h1>Local API — walking skeleton</h1>
+    <p class="sub">
+      The button calls <code>POST /moveChat</code>. That route is a copy of
+      <code>amplify/hono/routes/move-chat.ts</code>, running on Node with a fake
+      database. No AWS.
+    </p>
+
+    <div class="row">
+      <button id="go">Move chat → space-new</button>
+      <button id="reset" style="background:transparent;color:inherit;border-color:rgba(127,127,127,.5)">Reset</button>
+    </div>
+
+    <h2>Route response</h2>
+    <pre id="response">—</pre>
+
+    <h2>Data calls the fake client recorded</h2>
+    <pre id="calls">—</pre>
+
+    <script>
+      const responseEl = document.getElementById('response');
+      const callsEl = document.getElementById('calls');
+      const goBtn = document.getElementById('go');
+      const resetBtn = document.getElementById('reset');
+
+      const show = (el, value) => {
+        el.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+      };
+
+      async function refreshCalls() {
+        const res = await fetch('/__calls');
+        const calls = await res.json();
+        show(callsEl, calls.length ? calls.map((c, i) => `${i + 1}. ${c.op}  ${JSON.stringify(c.args)}`) : 'no calls yet');
+      }
+
+      goBtn.addEventListener('click', async () => {
+        goBtn.disabled = true;
+        try {
+          const res = await fetch('/moveChat', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ chatUuid: 'chat-abc', spaceUuid: 'space-new' }),
+          });
+          show(responseEl, { status: res.status, body: await res.json() });
+          await refreshCalls();
+        } catch (err) {
+          show(responseEl, String(err));
+        } finally {
+          goBtn.disabled = false;
+        }
+      });
+
+      resetBtn.addEventListener('click', async () => {
+        await fetch('/__reset', { method: 'POST' });
+        show(responseEl, '—');
+        show(callsEl, '—');
+      });
+
+      refreshCalls();
+    </script>
+  </body>
+</html>

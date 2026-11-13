@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Curio — database ERD</title>
+<style>
+  *{box-sizing:border-box}
+  body{font:15px/1.5 ui-sans-serif,system-ui,sans-serif;margin:1.5rem auto;max-width:1600px;padding:0 1.5rem;background:#fafafa;color:#111}
+  h1{font-size:1.15rem;margin:0 0 .25rem}
+  p.sub{margin:0 0 1.5rem;opacity:.65;font-size:.85rem}
+  h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;opacity:.55;margin:2rem 0 .5rem}
+  .zoombar{display:flex;align-items:center;gap:.6rem;font-size:.8rem;opacity:.75;margin-bottom:.4rem}
+  .zoombar input{width:180px}
+  .zoombar button{font:inherit;padding:.15rem .5rem;border:1px solid #ccc;background:#fff;border-radius:.35rem;cursor:pointer}
+  .stage{background:#fff;border:1px solid #e5e5e5;border-radius:.75rem;padding:1rem;overflow:auto;max-height:82vh}
+  .stage svg{max-width:none !important;height:auto !important;transform-origin:top left}
+</style></head>
+<body>
+<h1>Curio — database ERD</h1>
+<p class="sub">Generated from amplify/data/resource.ts · no AWS connection · scroll inside the box, or zoom.</p>
+<h2>Diagram 1</h2>
+<div class="zoombar"><span>zoom</span><input type="range" min="30" max="250" value="100" data-zoom="1"><span class="pct" id="pct1">100%</span><button data-fit="1">fit width</button></div>
+<div class="stage" id="stage1"><pre class="mermaid">erDiagram
+    USER_PROFILE ||--o{ SPACE : &quot;userUuid&quot;
+    USER_PROFILE ||--o{ DOCUMENT : &quot;userUuid&quot;
+    USER_PROFILE ||--o{ CHAT : &quot;userUuid&quot;
+    USER_PROFILE ||--o{ SPACE_USERS : &quot;userUuid&quot;
+
+    SPACE ||--o{ SPACE_USERS : &quot;spaceUuid&quot;
+    SPACE ||--o{ DOCUMENT : &quot;spaceUuid&quot;
+    SPACE ||--o{ CHAT : &quot;spaceUuid&quot;
+
+    DOCUMENT ||--o{ CHAT : &quot;documentUuid&quot;
+    DOCUMENT ||--o{ TASK : &quot;documentUuid&quot;
+    DOCUMENT ||--o{ FLASHCARD : &quot;documentUuid&quot;
+    DOCUMENT ||--o{ QUESTION : &quot;documentUuid&quot;
+
+    CHAT ||--o{ MESSAGE : &quot;chatUuid&quot;
+    CHAT ||--o{ CHAT_CITATION : &quot;chatUuid&quot;
+    CHAT ||--o{ FLASHCARD : &quot;chatUuid&quot;
+    CHAT ||--o{ QUESTION : &quot;chatUuid&quot;
+
+    MESSAGE ||--o{ CHAT_CITATION : &quot;messageUuid&quot;
+
+    USER_PROFILE {
+        uuid userUuid PK
+        string userEmail UK
+        bool onboardingCompleted
+        bool memoryDisabled
+    }
+    SPACE {
+        uuid spaceUuid PK
+        uuid userUuid FK
+        string name
+    }
+    SPACE_USERS {
+        uuid spaceUsersUuid PK
+        uuid spaceUuid FK
+        uuid userUuid FK
+        int level &quot;0 owner 1 editor 2 viewer&quot;
+    }
+    DOCUMENT {
+        uuid documentUuid PK
+        uuid userUuid FK
+        uuid spaceUuid FK &quot;nullable&quot;
+        uuid youtubeVideoUuid FK
+        uuid flashcardDeckUuid FK
+        string key &quot;S3&quot;
+        string originalKey
+        string fileName
+        string type
+        bool hasRagEmbeddings
+        int documentCount
+        timestamptz createdAt
+    }
+    CHAT {
+        uuid chatUuid PK
+        uuid userUuid FK
+        uuid spaceUuid FK &quot;nullable&quot;
+        uuid documentUuid FK &quot;nullable&quot;
+        uuid flashcardDeckUuid FK
+        string name
+        bool hideInRecent
+        timestamptz createdAt
+    }
+    MESSAGE {
+        uuid messageUuid PK
+        uuid chatUuid FK
+        enum role &quot;user | assistant&quot;
+        enum type &quot;text | tool&quot;
+        string content
+        string toolName
+        jsonb toolArguments
+        jsonb toolExtras
+        enum agentStatus
+        bool isCompleted
+        timestamptz createdAt
+    }
+    CHAT_CITATION {
+        uuid chatCitationUuid PK
+        uuid chatUuid FK
+        uuid messageUuid FK
+        string type
+        string url
+        int startIndex
+        int endIndex
+    }
+    TASK {
+        uuid taskUuid PK
+        uuid documentUuid FK &quot;nullable&quot;
+        uuid userUuid FK
+        uuid messageUuid FK &quot;nullable&quot;
+        enum status &quot;PENDING PROCESSING COMPLETED FAILED&quot;
+        enum type
+        int progress
+        jsonb args
+        string error
+    }
+    FLASHCARD {
+        uuid flashcardUuid PK
+        timestamptz createdAt PK
+        uuid userUuid FK
+        uuid spaceUuid FK
+        uuid documentUuid FK
+        uuid chatUuid FK
+        string title
+        string content
+        enum vote
+    }
+    QUESTION {
+        uuid questionUuid PK
+        timestamptz createdAt PK
+        uuid userUuid FK
+        uuid spaceUuid FK
+        uuid documentUuid FK
+        uuid chatUuid FK
+        string questionContent
+        string_array options
+        int answer
+    }
+</pre></div>
+<h2>Diagram 2</h2>
+<div class="zoombar"><span>zoom</span><input type="range" min="30" max="250" value="100" data-zoom="2"><span class="pct" id="pct2">100%</span><button data-fit="2">fit width</button></div>
+<div class="stage" id="stage2"><pre class="mermaid">erDiagram
+    SPACE ||--o{ DOCUMENT : &quot;&quot;
+    SPACE ||--o{ CHAT : &quot;&quot;
+    SPACE ||--o{ EXAM_PAPER : &quot;&quot;
+    SPACE ||--o{ SPACE_USERS : &quot;&quot;
+    SPACE ||--o{ FLASHCARD : &quot;&quot;
+    SPACE ||--o{ QUESTION : &quot;&quot;
+    SPACE ||--o{ FLASHCARD_GAME : &quot;&quot;
+    SPACE ||--o{ MOCK_EXAM : &quot;&quot;
+
+    DOCUMENT ||--o{ CHAT : &quot;&quot;
+    DOCUMENT ||--o{ TASK : &quot;&quot;
+    DOCUMENT ||--o{ DOCUMENT_SUMMARY : &quot;&quot;
+    DOCUMENT ||--o{ DOCUMENT_SECTION : &quot;&quot;
+    DOCUMENT ||--o{ DOCUMENT_VISION_OUTPUT : &quot;&quot;
+    DOCUMENT ||--o{ EXTRACTED_QUESTION_PLACEHOLDER : &quot;not a real edge&quot;
+    DOCUMENT ||--o{ EXAM_PAPER : &quot;&quot;
+    DOCUMENT ||--o{ USER_REQUEST : &quot;&quot;
+    DOCUMENT ||--o{ MEMORY_BLOCK : &quot;&quot;
+
+    CHAT ||--o{ MESSAGE : &quot;&quot;
+    CHAT ||--o{ CHAT_CITATION : &quot;&quot;
+    CHAT ||--o{ QUIZ : &quot;sourceUuid (polymorphic)&quot;
+    CHAT ||--o{ MEMORY_CANDIDATE : &quot;&quot;
+
+    MESSAGE ||--o{ CHAT_CITATION : &quot;&quot;
+
+    QUIZ ||--o{ QUIZ_QUESTION : &quot;&quot;
+    QUIZ ||--o{ QUIZ_ATTEMPT : &quot;&quot;
+
+    EXAM_PAPER ||--o{ EXAM_PAPER_QUESTION : &quot;&quot;
+
+    MOCK_EXAM ||--o{ MOCK_EXAM_LOG : &quot;&quot;
+
+    QUESTION_EXTRACT_JOB ||--o{ EXTRACTED_QUESTION : &quot;&quot;
+    QUESTION_GENERATION_JOB ||--o{ EXTRACTED_QUESTION : &quot;&quot;
+    EXAM_MODULE ||--o{ EXTRACTED_QUESTION : &quot;examModuleUuid&quot;
+
+    FLASHCARD_DECK ||--o{ DOCUMENT : &quot;referenced by&quot;
+    FLASHCARD_DECK ||--o{ CHAT : &quot;referenced by&quot;
+
+    PARTNERSHIP ||--o{ FUTURE_USER : &quot;&quot;
+    BUNDLE ||--o{ PURCHASE : &quot;&quot;
+    RECEIPT ||--o{ PURCHASE : &quot;&quot;
+    QUIZ ||--o{ EXTRACTED_QUESTION : &quot;unrelated&quot;
+
+    USER_PROFILE {
+        uuid userUuid PK
+    }
+    SPACE_USERS {
+        uuid spaceUsersUuid PK
+        uuid spaceUuid FK
+        uuid userUuid FK
+    }
+    MOCK_DOCUMENT {
+        uuid mockDocumentUuid PK
+        uuid documentUuid FK
+    }
+    DATALAB_REQUEST {
+        string requestId PK
+        uuid documentUuid FK
+        uuid taskUuid FK
+        uuid userUuid FK
+        string taskToken &quot;step functions pause token&quot;
+        string status
+    }
+    METADATA {
+        uuid metadataUuid PK
+        string targetUuid &quot;polymorphic&quot;
+        string targetType &quot;polymorphic&quot;
+        string name
+        string value
+    }
+    DOCUMENT_SUMMARY {
+        uuid documentSummaryUuid PK
+        uuid documentUuid FK
+        enum status
+        enum vote
+    }
+    DOCUMENT_SECTION {
+        uuid documentSectionUuid PK
+        uuid documentUuid FK
+    }
+    DOCUMENT_VISION_OUTPUT {
+        uuid documentVisionOutputUuid PK
+        uuid documentUuid FK
+        int pageNumber
+    }
+    QUESTION_EXTRACT_JOB {
+        uuid questionExtractJobUuid PK
+        uuid userUuid FK
+        string answerKeyStatus
+        enum status
+    }
+    QUESTION_GENERATION_JOB {
+        uuid questionGenerationJobUuid PK
+        uuid userUuid FK
+        enum status
+    }
+    EXTRACTED_QUESTION {
+        uuid extractedQuestionUuid PK
+        uuid questionExtractJobUuid FK
+        uuid questionGenerationJobUuid FK
+        uuid examModuleUuid FK
+        enum questionType
+        enum difficulty
+        bool verified
+    }
+    MOCK_EXAM {
+        uuid mockExamUuid PK
+        uuid userUuid FK
+        uuid spaceUuid FK
+        uuid chatUuid FK
+        enum creationStatus
+    }
+    MOCK_EXAM_LOG {
+        uuid mockExamLogUuid PK
+        uuid mockExamUuid FK
+        int score
+    }
+    SAT_MINI_EXAM_LOG {
+        uuid satMiniExamLogUuid PK
+        uuid userUuid FK
+        int predictedSATScore
+    }
+    QUIZ_QUESTION {
+        uuid quizQuestionUuid PK
+        uuid quizUuid FK
+        uuid sourceUuid &quot;polymorphic&quot;
+        uuid userUuid FK
+    }
+    QUIZ_ATTEMPT {
+        uuid quizAttemptUuid PK
+        uuid quizUuid FK
+        uuid userUuid FK
+        int score
+    }
+    FLASHCARD_GAME {
+        uuid flashcardGameUuid PK
+        uuid userUuid FK
+        uuid spaceUuid FK
+        int progress
+    }
+    YOUTUBE_VIDEO {
+        uuid youtubeVideoUuid PK
+        string videoId UK
+        string transcriptKey
+    }
+    EXAM_PAPER_QUESTION {
+        uuid examPaperQuestionUuid PK
+        uuid examPaperUuid FK
+        uuid moduleUuid
+        enum difficultyLevel
+    }
+    APP_SETTINGS {
+        uuid appSettingsUuid PK
+        bool memoryFeatureEnabled
+    }
+    EXAM_MODULE {
+        uuid examModuleUuid PK
+        string moduleName
+        int price
+        bool retired
+    }
+    CURIO_SUBSCRIPTION {
+        uuid subscriptionId PK
+        uuid userId FK
+        enum tier &quot;super | ultra&quot;
+        enum status
+        enum provider
+    }
+    RECEIPT {
+        uuid receiptId PK
+        uuid userId FK
+        string payload
+    }
+    PURCHASE {
+        uuid userId PK
+        uuid bundleUuid PK
+        uuid receiptId FK
+        timestamptz revokedAt
+    }
+    FUTURE_USER {
+        uuid futureUserUuid PK
+        uuid partnershipUuid FK
+        string email UK
+        bool subscriptionGranted
+    }
+    USER_REQUEST {
+        uuid userUuid PK
+        timestamptz createdAt PK
+        uuid documentUuid FK
+        uuid youtubeVideoUuid FK
+        string model
+        int totalTokenCount
+        enum category
+    }
+    USER_ACTION_LOG {
+        uuid userActionLogUuid PK
+        uuid userUuid FK
+        uuid sourceUuid
+        enum actionType
+    }
+    USER_LEARNING_PROFILE_HISTORY {
+        uuid userLearningProfileHistoryUuid PK
+        uuid userUuid FK
+        string concept
+    }
+    MEMORY_BLOCK {
+        uuid memoryBlockUuid PK
+        uuid ownerUuid FK
+        uuid documentUuid FK
+        enum scope &quot;user folder file system&quot;
+        float confidence
+        int frequency
+        int version
+    }
+    MEMORY_CANDIDATE {
+        uuid memoryCandidateUuid PK
+        uuid ownerUuid FK
+        uuid chatUuid FK
+        uuid messageUuid FK
+        enum decision &quot;created merged rejected&quot;
+    }
+    BATCH_PROCESS {
+        uuid processId PK
+        string jobType
+        enum state
+        int totalJobs
+        int completedJobs
+    }
+</pre></div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+
+  function applyStage(id, scale) {
+    const stage = document.getElementById('stage' + id);
+    const svg = stage && stage.querySelector('svg');
+    if (!svg) return;
+    const baseW = Number(svg.getAttribute('width')) || svg.getBoundingClientRect().width;
+    const baseH = Number(svg.getAttribute('height')) || svg.getBoundingClientRect().height;
+    svg.style.width = baseW + 'px';
+    svg.style.height = baseH + 'px';
+    svg.style.transform = 'scale(' + scale / 100 + ')';
+    svg.style.marginRight = Math.max(0, (scale / 100 - 1) * baseW) + 'px';
+    svg.style.marginBottom = Math.max(0, (scale / 100 - 1) * baseH) + 'px';
+  }
+
+  function fit(id) {
+    const stage = document.getElementById('stage' + id);
+    const svg = stage && stage.querySelector('svg');
+    if (!svg) return;
+    svg.style.transform = 'none';
+    svg.style.marginRight = '0px';
+    svg.style.marginBottom = '0px';
+    const natural = Number(svg.getAttribute('width')) || svg.getBoundingClientRect().width;
+    const avail = stage.clientWidth - 32;
+    const pct = Math.max(30, Math.min(100, Math.floor((avail / natural) * 100)));
+    const slider = document.querySelector('[data-zoom="' + id + '"]');
+    slider.value = pct;
+    document.getElementById('pct' + id).textContent = pct + '%';
+    applyStage(id, pct);
+  }
+
+  document.querySelectorAll('[data-zoom]').forEach((slider) => {
+    const id = slider.dataset.zoom;
+    slider.addEventListener('input', () => {
+      document.getElementById('pct' + id).textContent = slider.value + '%';
+      applyStage(id, Number(slider.value));
+    });
+  });
+  document.querySelectorAll('[data-fit]').forEach((btn) => {
+    btn.addEventListener('click', () => fit(btn.dataset.fit));
+  });
+  setTimeout(() => document.querySelectorAll('[data-fit]').forEach((b) => b.click()), 1200);
+</script>
+</body></html>
