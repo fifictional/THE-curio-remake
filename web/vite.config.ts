@@ -1,10 +1,12 @@
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
-// The API runs on :3101. Proxying /api and the data routes keeps cookies
-// same-origin, so Better Auth's session cookie works without CORS setup.
+// TanStack Start owns the dev/build pipeline (router generation, SSR entry).
+// The API still runs separately on :3101; the proxy below keeps Better Auth's
+// session cookie same-origin.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tanstackStart(), viteReact()],
   server: {
     port: 5173,
     proxy: {

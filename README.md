@@ -60,13 +60,21 @@ users is an id mapping — no child-table rewrite.
 
 ## UI
 
-`web/` is a Vite + React + **TanStack Query** client. Vite proxies the API, so
-Better Auth's cookie is same-origin and there is no CORS setup.
+`web/` is **TanStack Start** (v1) with file-based routes and TanStack Query:
+
+```
+web/src/routes/__root.tsx   document shell + <Outlet/>
+web/src/routes/index.tsx    the chat page (ssr: false for now)
+web/src/router.tsx          getRouter()
+web/src/components/chat-app.tsx
+web/src/api.ts              TanStack Query hooks over fetch
+```
+
+Start's dev server proxies the API on :3101, so Better Auth's cookie is
+same-origin — no CORS. `ssr: false` on the route because app-level SSR needs
+cookie forwarding into loaders; that is the next step, not an oversight.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
-
-TanStack **Start** (framework, SSR, file routes) is not set up yet — this is the
-Query layer only, deliberately.
 
 ## Seam
 
