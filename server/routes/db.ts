@@ -179,7 +179,7 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
         const shaped = Array.isArray(data)
           ? data
               .map((r) => shape(r as Record<string, unknown>))
-              .filter((r) => r && r.id === identity.sub)
+              .filter((r) => r && (r as Record<string, unknown>).id === identity.sub)
           : shape(data as Record<string, unknown> | undefined);
         return c.json({ data: shaped, errors: [] });
       }
