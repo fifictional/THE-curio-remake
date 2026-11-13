@@ -8,7 +8,7 @@ import {
   useSignIn,
   useSignOut,
   useSignUp,
-} from './api';
+} from '../api';
 
 function AuthCard() {
   const [email, setEmail] = useState('local@curio.test');
