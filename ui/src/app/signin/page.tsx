@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { getMe, signIn, signUp } from '@/lib/local-auth';
 
 /**
@@ -13,18 +13,21 @@ import { getMe, signIn, signUp } from '@/lib/local-auth';
  */
 export default function SignInPage() {
   const router = useRouter();
-  const params = useSearchParams();
-  const redirect = params.get('redirect') ?? '/';
+  const [redirect, setRedirect] = useState('/');
   const [email, setEmail] = useState('local@curio.test');
   const [password, setPassword] = useState('localpassword123');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // `useSearchParams()` requires a Suspense boundary and was breaking hydration
+  // (buttons rendered but did nothing). Read the query string client-side.
   useEffect(() => {
+    const target = new URLSearchParams(window.location.search).get('redirect') ?? '/';
+    setRedirect(target);
     getMe().then((me) => {
-      if (me) router.replace(redirect);
+      if (me) router.replace(target);
     });
-  }, [router, redirect]);
+  }, [router]);
 
   const submit = async (mode: 'in' | 'up') => {
     setBusy(true);

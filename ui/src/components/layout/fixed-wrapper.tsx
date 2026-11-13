@@ -5,7 +5,7 @@ import { Sidebar } from "./sidebar";
 import { cn } from "@/lib/utils";
 import { RightPanel } from "./right-panel";
 import { redirect, usePathname } from "next/navigation";
-import { useAuthenticator } from "@aws-amplify/ui-react";
+import { useAuthenticator } from "@/lib/local-auth-react";
 import { useCommonContext, useSessionContext, useSpaceContext } from "@/providers";
 import { DocumentQuickSwitcher } from "./document-quick-switcher";
 import { useCallback, useEffect, useMemo, useRef } from "react";

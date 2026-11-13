@@ -12,12 +12,12 @@ import { useEffect, useState } from 'react';
 
 import { getMe, type LocalUser } from './local-auth';
 
-type AuthRoute = 'authenticated' | 'signIn' | 'idle';
+type AuthRoute = 'authenticated' | 'signIn';
 
 interface AuthenticatorContext {
   user: { userId: string; username: string; signInDetails: { loginId?: string | null } } | null;
   route: AuthRoute;
-  authStatus: 'authenticated' | 'unauthenticated' | 'configuring';
+  authStatus: 'authenticated' | 'unauthenticated';
   signOut: () => Promise<void>;
 }
 
@@ -30,14 +30,12 @@ interface AuthenticatorContext {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useAuthenticator(_selector?: (context: AuthenticatorContext) => unknown): any {
   const [user, setUser] = useState<LocalUser | null>(null);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
     getMe().then((me) => {
       if (!alive) return;
       setUser(me);
-      setReady(true);
     });
     return () => {
       alive = false;
@@ -48,8 +46,10 @@ export function useAuthenticator(_selector?: (context: AuthenticatorContext) => 
     user: user
       ? { userId: user.sub, username: user.email ?? user.sub, signInDetails: { loginId: user.email } }
       : null,
-    route: user ? 'authenticated' : ready ? 'signIn' : 'idle',
-    authStatus: user ? 'authenticated' : ready ? 'unauthenticated' : 'configuring',
+    // Never 'idle': the app shell renders a full-screen spinner for 'idle' and
+    // nothing else, so an unresolved session would block the entire UI.
+    route: (user ? 'authenticated' : 'signIn') as AuthRoute,
+    authStatus: (user ? 'authenticated' : 'unauthenticated') as AuthenticatorContext['authStatus'],
     signOut: async () => {
       const { signOut } = await import('./local-auth');
       await signOut();

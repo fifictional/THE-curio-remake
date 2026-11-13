@@ -3,7 +3,7 @@
 import { MockExamSingleQuestion } from "@/components/mock-exams/flow/mock-exam-single-question";
 import { useSATMiniExamFlow } from "@/hooks/api/sat-mini/use-sat-mini-exam-flow.api";
 import { useParams } from "next/navigation";
-import { useAuthenticator } from "@aws-amplify/ui-react";
+import { useAuthenticator } from "@/lib/local-auth-react";
 
 export function TakeExamAsTab() {
   const params = useParams();
