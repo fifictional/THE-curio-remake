@@ -20,7 +20,7 @@ interface MoveChatResult {
 }
 
 const postMoveChat = async (body: unknown): Promise<MoveChatResult> => {
-  const { app, calls } = createApp(undefined, { auth: false });
+  const { app, calls } = createApp({ auth: false });
   const res = await app.request('/moveChat', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -84,7 +84,7 @@ describe('moveChat over plain HTTP', () => {
 
 describe('auth boundary', () => {
   it('rejects message reads without a session', async () => {
-    const { app } = createApp(undefined, { auth: false });
+    const { app } = createApp({ auth: false });
     const res = await app.request('/messages?chat=44444444-4444-4444-8444-444444444444');
     expect(res.status).toBe(401);
   });

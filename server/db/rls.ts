@@ -17,11 +17,27 @@
 
 import 'dotenv/config';
 
-import { sql } from './client';
+import { ownerSql as sql } from './owner-client';
 
 const tables = ['spaces', 'documents', 'chats', 'flashcards', 'questions'] as const;
 
 async function main() {
+  // A superuser bypasses RLS even with FORCE. The application must therefore
+  // connect as a plain role that owns nothing.
+  await sql.unsafe(`
+    do $$
+    begin
+      if not exists (select from pg_roles where rolname = 'curio_app') then
+        create role curio_app login password 'curio_app' nosuperuser nobypassrls;
+      end if;
+    end $$;
+  `);
+  await sql.unsafe('grant usage on schema public to curio_app');
+  await sql.unsafe(
+    'grant select, insert, update, delete on all tables in schema public to curio_app',
+  );
+  console.log('  role curio_app (no bypassrls)');
+
   for (const table of tables) {
     await sql.unsafe(`alter table ${table} enable row level security`);
     await sql.unsafe(`alter table ${table} force row level security`);

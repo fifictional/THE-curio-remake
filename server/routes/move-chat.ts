@@ -51,10 +51,11 @@ export interface MoveChatRoute {
   handler: (c: Context<HonoEnv>) => Promise<Response>;
 }
 
-export function createMoveChatRoute(client: HonoDataClient): MoveChatRoute {
+export function createMoveChatRoute(): MoveChatRoute {
   const validate = validateBody(MoveChatArgs);
 
   const handler = async (c: Context<HonoEnv>): Promise<Response> => {
+    const client = c.var.db;
     const { chatUuid, spaceUuid } = getValidatedBody<typeof MoveChatArgs>(c);
 
     const targetSpaceUuid =

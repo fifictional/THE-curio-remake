@@ -11,7 +11,9 @@ import postgres from 'postgres';
 
 import * as schema from './schema';
 
-const url = process.env.DATABASE_URL ?? 'postgres://curio:curio@localhost:5433/curio';
+// The app role: not a superuser, so RLS applies to it.
+const url =
+  process.env.DATABASE_URL ?? 'postgres://curio_app:curio_app@localhost:5433/curio';
 
 export const sql = postgres(url, { max: 10 });
 export const db = drizzle(sql, { schema });

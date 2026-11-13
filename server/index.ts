@@ -21,17 +21,19 @@ import type { HonoDataClient } from './data-client';
 const here = dirname(fileURLToPath(import.meta.url));
 const indexHtml = readFileSync(join(here, 'public', 'index.html'), 'utf8');
 
-let client: HonoDataClient | undefined;
+let clientFactory: ((userId: string | null) => HonoDataClient) | undefined;
 
 if (process.env.DATABASE_URL) {
   const { createPostgresDataClient } = await import('./postgres-data');
-  client = createPostgresDataClient();
-  console.log('  data:       postgres (DATABASE_URL)');
+  // Per-request client: each one runs inside a transaction that sets
+  // app.user_id, so Postgres RLS decides what the query can see.
+  clientFactory = (userId) => createPostgresDataClient(userId);
+  console.log('  data:       postgres + RLS (DATABASE_URL)');
 } else {
   console.log('  data:       in-memory fake (no DATABASE_URL)');
 }
 
-const { app } = createApp(client);
+const { app } = createApp({ clientFactory });
 app.get('/', (c) => c.html(indexHtml));
 
 const port = Number(process.env.PORT ?? 3101);

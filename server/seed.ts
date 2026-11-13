@@ -9,10 +9,9 @@
 
 import 'dotenv/config';
 
-import { eq } from 'drizzle-orm';
-
 import { auth } from './auth';
-import { db, sql } from './db/client';
+import { ownerSql as sql } from './db/owner-client';
+import { ownerDb } from './db/owner-client';
 import { chats, flashcards, messages, questions, spaces, users } from './db/schema';
 
 const SPACE_OLD = '22222222-2222-4222-8222-222222222222';
@@ -20,13 +19,13 @@ const SPACE_NEW = '33333333-3333-4333-8333-333333333333';
 const CHAT = '44444444-4444-4444-8444-444444444444';
 
 async function main() {
-  // children first
-  await db.delete(messages).where(eq(messages.chatUuid, CHAT));
-  await db.delete(flashcards);
-  await db.delete(questions);
-  await db.delete(chats);
-  await db.delete(spaces);
-  await db.delete(users);
+  // TRUNCATE is not subject to row-level security, so this clears the seeded
+  // data without needing a user context. (DELETE would be filtered by RLS.)
+  await sql.unsafe(`
+    truncate table messages, flashcards, questions, chats, spaces, documents,
+                   sessions, accounts, verifications, users
+    restart identity cascade
+  `);
 
   // Create the identity through Better Auth so the password hash / account row
   // are produced by the library, not hand-rolled here.
@@ -39,6 +38,10 @@ async function main() {
   });
   const USER = signUp.user.id;
 
+  // Seeding uses the owner connection: it bypasses RLS, which is fine for a
+  // dev fixture script (the app role never does).
+  const db = ownerDb;
+  {
   await db.insert(spaces).values([
     { spaceUuid: SPACE_OLD, userUuid: USER, name: 'Biology' },
     { spaceUuid: SPACE_NEW, userUuid: USER, name: 'Chemistry' },
@@ -90,6 +93,8 @@ async function main() {
       answer: 0,
     },
   ]);
+
+  }
 
   console.log('seeded');
   console.log('  login     local@curio.test / localpassword123');

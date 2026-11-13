@@ -14,8 +14,12 @@
 
 export type InvocationType = 'appsync' | 'direct' | 'scheduled';
 
+import type { HonoDataClient } from './data-client';
+
 export interface HonoVariables {
   identity: unknown | null;
+  /** Data client scoped to this request's user (RLS). */
+  db: HonoDataClient;
   requestId: string;
   invocationType: InvocationType;
 }

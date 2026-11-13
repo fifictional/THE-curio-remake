@@ -52,7 +52,7 @@ async function ownsChat(
   return { ok: true };
 }
 
-export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
+export function createMessagesRoute(): MessagesRoute {
   const createValidate = validateBody(CreateMessageArgs);
 
   const list = async (c: Context<HonoEnv>): Promise<Response> => {
@@ -68,6 +68,7 @@ export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
       );
     }
 
+    const client = c.var.db;
     const gate = await ownsChat(client, c.var.identity as Identity, parsed.data.chat);
     if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status);
 
@@ -81,6 +82,7 @@ export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
 
   const create = async (c: Context<HonoEnv>): Promise<Response> => {
     const input = getValidatedBody<typeof CreateMessageArgs>(c);
+    const client = c.var.db;
     const gate = await ownsChat(client, c.var.identity as Identity, input.chatUuid);
     if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status);
 

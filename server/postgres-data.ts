@@ -20,7 +20,7 @@ import type {
   QuestionRecord,
   UpdateOptions,
 } from './data-client';
-import { db } from './db/client';
+import { asUser } from './db/scope';
 import { chats, flashcards, messages, questions, spaces } from './db/schema';
 
 const iso = (d: Date | string | null | undefined) =>
@@ -42,16 +42,28 @@ function toChatRecord(row: typeof chats.$inferSelect): ChatRecord {
   };
 }
 
-export function createPostgresDataClient(): HonoDataClient {
+/**
+ * Every method runs inside `asUser(...)`, so Postgres RLS — not this file —
+ * decides which rows exist. Passing `null` means "no user": the policies match
+ * nothing and every read returns empty.
+ */
+export function createPostgresDataClient(userId: string | null): HonoDataClient {
   return {
     models: {
       Chat: {
         async get({ chatUuid }) {
-          const [row] = await db.select().from(chats).where(eq(chats.chatUuid, chatUuid)).limit(1);
-          return ok<ChatRecord>(row ? toChatRecord(row) : null);
+          return asUser(userId, async (db) => {
+            const [row] = await db
+              .select()
+              .from(chats)
+              .where(eq(chats.chatUuid, chatUuid))
+              .limit(1);
+            return ok<ChatRecord>(row ? toChatRecord(row) : null);
+          });
         },
 
         async update(input: Record<string, unknown>, _options?: UpdateOptions) {
+          return asUser(userId, async (db) => {
           const chatUuid = String(input.chatUuid);
           const patch: Partial<typeof chats.$inferInsert> = {
             updatedAt: new Date(),
@@ -66,11 +78,13 @@ export function createPostgresDataClient(): HonoDataClient {
             .returning();
 
           return ok<ChatRecord>(row ? toChatRecord(row) : null);
+          });
         },
       },
 
       Message: {
         async listByChat({ chatUuid }, options) {
+          return asUser(userId, async (db) => {
           const rows = await db
             .select()
             .from(messages)
@@ -92,9 +106,11 @@ export function createPostgresDataClient(): HonoDataClient {
               }),
             ),
           );
+          });
         },
 
         async create(input) {
+          return asUser(userId, async (db) => {
           const [row] = await db
             .insert(messages)
             .values({
@@ -119,11 +135,13 @@ export function createPostgresDataClient(): HonoDataClient {
             agentStatus: row.agentStatus,
             createdAt: iso(row.createdAt),
           });
+          });
         },
       },
 
       Flashcard: {
         async listFlashcardByChatUuidAndCreatedAt({ chatUuid }, options) {
+          return asUser(userId, async (db) => {
           const rows = await db
             .select()
             .from(flashcards)
@@ -140,9 +158,11 @@ export function createPostgresDataClient(): HonoDataClient {
               }),
             ),
           );
+          });
         },
 
         async update(input: Record<string, unknown>) {
+          return asUser(userId, async (db) => {
           const [row] = await db
             .update(flashcards)
             .set({
@@ -157,11 +177,13 @@ export function createPostgresDataClient(): HonoDataClient {
               ? { flashcardUuid: row.flashcardUuid, createdAt: row.createdAt, spaceUuid: row.spaceUuid }
               : null,
           );
+          });
         },
       },
 
       Question: {
         async listQuestionByChatUuidAndCreatedAt({ chatUuid }, options) {
+          return asUser(userId, async (db) => {
           const rows = await db
             .select()
             .from(questions)
@@ -178,9 +200,11 @@ export function createPostgresDataClient(): HonoDataClient {
               }),
             ),
           );
+          });
         },
 
         async update(input: Record<string, unknown>) {
+          return asUser(userId, async (db) => {
           const [row] = await db
             .update(questions)
             .set({
@@ -195,11 +219,13 @@ export function createPostgresDataClient(): HonoDataClient {
               ? { questionUuid: row.questionUuid, createdAt: row.createdAt, spaceUuid: row.spaceUuid }
               : null,
           );
+          });
         },
       },
 
       Space: {
         async update(input: Record<string, unknown>, _options?: UpdateOptions) {
+          return asUser(userId, async (db) => {
           const [row] = await db
             .update(spaces)
             .set({ updatedAt: new Date() })
@@ -207,6 +233,7 @@ export function createPostgresDataClient(): HonoDataClient {
             .returning();
 
           return ok<Record<string, unknown>>(row ? { spaceUuid: row.spaceUuid, updatedAt: row.updatedAt } : null);
+          });
         },
       },
     },
