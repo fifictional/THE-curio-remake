@@ -11,10 +11,10 @@ import 'dotenv/config';
 
 import { eq } from 'drizzle-orm';
 
+import { auth } from './auth';
 import { db, sql } from './db/client';
 import { chats, flashcards, messages, questions, spaces, users } from './db/schema';
 
-const USER = '11111111-1111-4111-8111-111111111111';
 const SPACE_OLD = '22222222-2222-4222-8222-222222222222';
 const SPACE_NEW = '33333333-3333-4333-8333-333333333333';
 const CHAT = '44444444-4444-4444-8444-444444444444';
@@ -28,12 +28,16 @@ async function main() {
   await db.delete(spaces);
   await db.delete(users);
 
-  await db.insert(users).values({
-    userUuid: USER,
-    email: 'local@curio.test',
-    firstName: 'Local',
-    lastName: 'User',
+  // Create the identity through Better Auth so the password hash / account row
+  // are produced by the library, not hand-rolled here.
+  const signUp = await auth.api.signUpEmail({
+    body: {
+      email: 'local@curio.test',
+      password: 'localpassword123',
+      name: 'Local User',
+    },
   });
+  const USER = signUp.user.id;
 
   await db.insert(spaces).values([
     { spaceUuid: SPACE_OLD, userUuid: USER, name: 'Biology' },
@@ -88,6 +92,7 @@ async function main() {
   ]);
 
   console.log('seeded');
+  console.log('  login     local@curio.test / localpassword123');
   console.log('  user     ', USER);
   console.log('  spaces   ', SPACE_OLD, '(old)  ', SPACE_NEW, '(new)');
   console.log('  chat     ', CHAT);

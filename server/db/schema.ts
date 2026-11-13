@@ -36,14 +36,80 @@ export const messageType = pgEnum('message_type', ['text', 'tool']);
 /* users                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Identity table — Better Auth's `user` model.
+ *
+ * Two deliberate choices:
+ *   - the primary-key PROPERTY is `id` because Better Auth requires it; the
+ *     physical column stays `user_uuid` so existing data keeps its ids.
+ *     (This is the "migrate users" story: a Cognito `sub` becomes the auth id.)
+ *   - `name` replaces firstName/lastName, which is all Better Auth stores.
+ */
 export const users = pgTable('users', {
-  userUuid: uuid('user_uuid').primaryKey(),
+  id: uuid('user_uuid').primaryKey(),
+  name: text('name'),
   email: text('email').notNull().unique(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* -------------------------------------------------------------------------- */
+/* Better Auth tables (session / account / verification)                      */
+/* -------------------------------------------------------------------------- */
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    token: text('token').notNull().unique(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('accounts_user_idx').on(t.userId)],
+);
+
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('verifications_identifier_idx').on(t.identifier)],
+);
 
 /* -------------------------------------------------------------------------- */
 /* spaces (folders)                                                           */
@@ -55,7 +121,7 @@ export const spaces = pgTable(
     spaceUuid: uuid('space_uuid').primaryKey(),
     userUuid: uuid('user_uuid')
       .notNull()
-      .references(() => users.userUuid, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -73,7 +139,7 @@ export const documents = pgTable(
     documentUuid: uuid('document_uuid').primaryKey(),
     userUuid: uuid('user_uuid')
       .notNull()
-      .references(() => users.userUuid, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     // A document can live outside any folder — the old schema allows this.
     spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, {
       onDelete: 'set null',
@@ -102,7 +168,7 @@ export const chats = pgTable(
     chatUuid: uuid('chat_uuid').primaryKey(),
     userUuid: uuid('user_uuid')
       .notNull()
-      .references(() => users.userUuid, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, {
       onDelete: 'set null',
     }),
@@ -157,7 +223,7 @@ export const flashcards = pgTable(
     flashcardUuid: uuid('flashcard_uuid').primaryKey(),
     userUuid: uuid('user_uuid')
       .notNull()
-      .references(() => users.userUuid, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, {
       onDelete: 'set null',
     }),
@@ -184,7 +250,7 @@ export const questions = pgTable(
     questionUuid: uuid('question_uuid').primaryKey(),
     userUuid: uuid('user_uuid')
       .notNull()
-      .references(() => users.userUuid, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, {
       onDelete: 'set null',
     }),
@@ -217,13 +283,13 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const spacesRelations = relations(spaces, ({ one, many }) => ({
-  user: one(users, { fields: [spaces.userUuid], references: [users.userUuid] }),
+  user: one(users, { fields: [spaces.userUuid], references: [users.id] }),
   documents: many(documents),
   chats: many(chats),
 }));
 
 export const chatsRelations = relations(chats, ({ one, many }) => ({
-  user: one(users, { fields: [chats.userUuid], references: [users.userUuid] }),
+  user: one(users, { fields: [chats.userUuid], references: [users.id] }),
   space: one(spaces, { fields: [chats.spaceUuid], references: [spaces.spaceUuid] }),
   document: one(documents, {
     fields: [chats.documentUuid],

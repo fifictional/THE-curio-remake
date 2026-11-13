@@ -32,6 +32,26 @@ export interface MessagesRoute {
   create: (c: Context<HonoEnv>) => Promise<Response>;
 }
 
+type Identity = { sub: string } | null;
+
+/**
+ * Ownership guard. The old stack relied on `allow.publicApiKey` plus
+ * hand-written checks; here a chat is only readable/writable by its owner.
+ * (The next step is doing this in Postgres with RLS so it cannot be forgotten.)
+ */
+async function ownsChat(
+  client: HonoDataClient,
+  identity: Identity,
+  chatUuid: string,
+): Promise<{ ok: true } | { ok: false; status: 401 | 404; error: string }> {
+  if (!identity) return { ok: false, status: 401, error: 'Not signed in' };
+  const chat = await client.models.Chat.get({ chatUuid });
+  if (!chat.data || chat.data.userUuid !== identity.sub) {
+    return { ok: false, status: 404, error: 'Chat not found' };
+  }
+  return { ok: true };
+}
+
 export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
   const createValidate = validateBody(CreateMessageArgs);
 
@@ -48,6 +68,9 @@ export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
       );
     }
 
+    const gate = await ownsChat(client, c.var.identity as Identity, parsed.data.chat);
+    if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status);
+
     const result = await client.models.Message.listByChat(
       { chatUuid: parsed.data.chat },
       { limit: parsed.data.limit },
@@ -58,6 +81,9 @@ export function createMessagesRoute(client: HonoDataClient): MessagesRoute {
 
   const create = async (c: Context<HonoEnv>): Promise<Response> => {
     const input = getValidatedBody<typeof CreateMessageArgs>(c);
+    const gate = await ownsChat(client, c.var.identity as Identity, input.chatUuid);
+    if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status);
+
     const result = await client.models.Message.create(input);
     return c.json({ success: true, message: result.data });
   };

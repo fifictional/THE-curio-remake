@@ -38,10 +38,25 @@ npm run dev          # http://localhost:3101
 | `POST /messages` | insert a message |
 | `POST /moveChat` | the real ported route — moves a chat + its flashcards/questions between spaces |
 | `GET /__hello` | smoke check |
+| `GET /me` | current user (401 if signed out) |
+| `POST /api/auth/sign-up/email` | Better Auth sign-up |
+| `POST /api/auth/sign-in/email` | Better Auth sign-in (sets cookie) |
+| `POST /api/auth/sign-out` | sign out |
 
 The page at `/` lists real rows and lets you move the chat between spaces.
 
 Seeded ids: chat `44444444-4444-4444-8444-444444444444`, spaces `2222…` (Biology) and `3333…` (Chemistry).
+
+## Auth
+
+Better Auth, email + password, session cookie. Every request resolves a session;
+`/messages` returns 401 without one and 404 for a chat you don't own.
+
+Local login after `npm run db:seed`: `local@curio.test` / `localpassword123`.
+
+**User migration:** the auth user id *is* the legacy `userUuid` value
+(`users.id` property maps to the `user_uuid` column), so importing Cognito
+users is an id mapping — no child-table rewrite.
 
 ## Seam
 

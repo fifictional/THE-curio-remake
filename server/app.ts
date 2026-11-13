@@ -8,25 +8,48 @@
 
 import { Hono } from 'hono';
 
+import { auth } from './auth';
 import type { HonoDataClient } from './data-client';
 import { createFakeDataClient, type RecordedCall } from './fake-data';
 import { createMessagesRoute } from './routes/messages';
 import { createMoveChatRoute } from './routes/move-chat';
 import type { HonoEnv } from './types';
 
-export function createApp(injectedClient?: HonoDataClient) {
+export interface AppOptions {
+  /** Resolve a Better Auth session per request. Disabled in unit tests. */
+  auth?: boolean;
+}
+
+export function createApp(injectedClient?: HonoDataClient, opts: AppOptions = {}) {
+  const authEnabled = opts.auth ?? true;
   const calls: RecordedCall[] = [];
   const client = injectedClient ?? createFakeDataClient(calls);
 
   const app = new Hono<HonoEnv>();
 
-  // Stand-in for the old auth-identity middleware. Replaced by Better Auth.
   app.use('*', async (c, next) => {
-    c.set('identity', null);
     c.set('invocationType', 'direct');
     c.set('requestId', crypto.randomUUID());
+
+    if (!authEnabled) {
+      c.set('identity', null);
+      await next();
+      return;
+    }
+
+    // Replaces the old AppSync identity: a Better Auth session cookie.
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    c.set(
+      'identity',
+      session
+        ? { sub: session.user.id, email: session.user.email, name: session.user.name }
+        : null,
+    );
     await next();
   });
+
+  // Better Auth endpoints: /api/auth/sign-up/email, /sign-in/email, /sign-out, /get-session
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
   app.onError((err, c) => {
     console.error('[server] route error:', err.message);
@@ -42,6 +65,14 @@ export function createApp(injectedClient?: HonoDataClient) {
       requestId: c.var.requestId,
     }),
   );
+
+  app.get('/me', (c) => {
+    const identity = c.var.identity as
+      | { sub: string; email?: string; name?: string | null }
+      | null;
+    if (!identity) return c.json({ authenticated: false }, 401);
+    return c.json({ authenticated: true, user: identity });
+  });
 
   app.get('/__calls', (c) => c.json(calls));
 
