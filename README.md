@@ -38,6 +38,7 @@ npm run dev          # http://localhost:3101
 | `POST /messages` | insert a message |
 | `POST /moveChat` | the real ported route — moves a chat + its flashcards/questions between spaces |
 | `GET /__hello` | smoke check |
+| `GET /rag/search?q=&chat=` | vector search (needs OPENAI_API_KEY) |
 | `GET /me` | current user (401 if signed out) |
 | `POST /api/auth/sign-up/email` | Better Auth sign-up |
 | `POST /api/auth/sign-in/email` | Better Auth sign-in (sets cookie) |
@@ -75,6 +76,15 @@ same-origin — no CORS. `ssr: false` on the route because app-level SSR needs
 cookie forwarding into loaders; that is the next step, not an oversight.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
+
+## Qdrant
+
+`npm run qdrant:smoke` upserts three points, searches with a payload filter and
+asserts users cannot see each other's vectors. Without `OPENAI_API_KEY` it uses
+a deterministic pseudo-vector, so the wire format is proven but *semantic*
+quality is not — that needs a real key.
+
+Qdrant is published on **6433** (6333 was taken by another local container).
 
 ## Seam
 

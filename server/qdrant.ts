@@ -11,7 +11,7 @@
 
 import { EMBED_DIMS } from './ai';
 
-const URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
+const URL = process.env.QDRANT_URL ?? 'http://localhost:6433';
 export const COLLECTION = process.env.QDRANT_COLLECTION ?? 'chat_messages';
 
 async function req(path: string, init?: RequestInit): Promise<Response> {

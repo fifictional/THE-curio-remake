@@ -14,7 +14,8 @@
     "db:migrate": "tsx server/db/migrate.ts",
     "db:seed": "tsx server/seed.ts",
     "db:rls": "tsx server/db/rls.ts",
-    "web": "npm --prefix web run dev"
+    "web": "npm --prefix web run dev",
+    "qdrant:smoke": "tsx server/qdrant-smoke.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.23",
