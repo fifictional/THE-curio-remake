@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
     "db:seed": "tsx server/seed.ts",
-    "db:rls": "tsx server/db/rls.ts"
+    "db:rls": "tsx server/db/rls.ts",
+    "web": "npm --prefix web run dev"
   },
   "dependencies": {
     "better-auth": "^1.7.23",

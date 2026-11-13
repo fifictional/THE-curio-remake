@@ -58,6 +58,16 @@ Local login after `npm run db:seed`: `local@curio.test` / `localpassword123`.
 (`users.id` property maps to the `user_uuid` column), so importing Cognito
 users is an id mapping — no child-table rewrite.
 
+## UI
+
+`web/` is a Vite + React + **TanStack Query** client. Vite proxies the API, so
+Better Auth's cookie is same-origin and there is no CORS setup.
+
+Login after seeding: `local@curio.test` / `localpassword123`.
+
+TanStack **Start** (framework, SSR, file routes) is not set up yet — this is the
+Query layer only, deliberately.
+
 ## Seam
 
 `server/data-client.ts` is the interface; `server/postgres-data.ts` and
