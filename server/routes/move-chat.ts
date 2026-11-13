@@ -61,9 +61,17 @@ export function createMoveChatRoute(): MoveChatRoute {
     const targetSpaceUuid =
       spaceUuid && spaceUuid.trim() !== '' ? spaceUuid : null;
 
+    const identity = c.var.identity as { sub: string } | null;
+    if (!identity) return c.json({ success: false, error: 'Not signed in' }, 401);
+
     const chat = await client.models.Chat.get({ chatUuid });
+    // Deviation from the old Lambda: it threw, which surfaced as a GraphQL
+    // error. A missing (or foreign) chat is a 404 here.
     if (!chat || !chat.data) {
-      throw new Error('Chat not found');
+      return c.json({ success: false, error: 'Chat not found' }, 404);
+    }
+    if (chat.data.userUuid && chat.data.userUuid !== identity.sub) {
+      return c.json({ success: false, error: 'Chat not found' }, 404);
     }
 
     const originalSpaceUuid = chat.data.spaceUuid;

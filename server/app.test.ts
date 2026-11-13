@@ -23,7 +23,7 @@ const postMoveChat = async (body: unknown): Promise<MoveChatResult> => {
   const { app, calls } = createApp({ auth: false });
   const res = await app.request('/moveChat', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-dev-user': 'user-1' },
     body: JSON.stringify(body),
   });
   return { res, calls, json: await res.json() };

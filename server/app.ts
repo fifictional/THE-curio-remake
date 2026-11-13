@@ -38,7 +38,11 @@ export function createApp(opts: AppOptions = {}) {
 
     let userId: string | null = null;
 
-    if (authEnabled) {
+    if (!authEnabled) {
+      // Tests only: a header stands in for a session cookie.
+      const devUser = c.req.header('x-dev-user');
+      c.set('identity', devUser ? { sub: devUser } : null);
+    } else {
       // Replaces the old AppSync identity: a Better Auth session cookie.
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (session) {
