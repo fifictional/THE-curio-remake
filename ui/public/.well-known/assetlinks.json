@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "to.flylane.curio",
+      "sha256_cert_fingerprints":
+        ["72:9E:30:54:1F:71:EA:20:84:4E:C8:8A:CF:52:7F:4C:1F:17:00:E4:CB:32:C7:02:2D:97:0A:A2:B5:04:D3:DC"]
+    }
+  }
+]

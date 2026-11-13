@@ -1,0 +1,32 @@
+---
+alwaysApply: true
+---
+
+# KISS Principle - Keep It Simple, Stupid
+
+Always prioritize the simplest possible solution before considering complex alternatives.
+
+## Guidelines:
+
+1. **Start Simple**: Begin with the most straightforward approach that could solve the problem
+2. **Minimal Changes**: Prefer solutions that require the fewest code modifications
+3. **Question Complexity**: Before implementing a solution, ask "Is there a simpler way?"
+4. **One-Line Fixes**: Consider if the problem can be solved with a single line change
+5. **Avoid Overengineering**: Don't refactor or restructure unless absolutely necessary
+
+## Examples from our conversation:
+
+- **Simple Solution**: Changing `COPY src ./src` to `COPY src ./dispatcher/src` to fix import path issues
+- **Overcomplicated Alternative**: Modifying tsconfig.json, changing rootDir, and including multiple directories
+
+## When to Apply:
+
+- Before making multiple file changes
+- Before refactoring existing code
+- Before adding complex configuration
+- When considering architectural changes
+- Before writing elaborate workarounds
+
+## Remember:
+
+The best solution is often the one that requires the least code changes and complexity. If you find yourself making multiple modifications across several files, pause and reconsider if there's a simpler approach.

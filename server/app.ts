@@ -17,6 +17,7 @@ import { createMessagesRoute } from './routes/messages';
 import { createMoveChatRoute } from './routes/move-chat';
 import { createAiChatRoute } from './routes/ai-chat';
 import { createRagRoutes } from './routes/rag';
+import { handleDbRequest } from './routes/db';
 import type { HonoEnv } from './types';
 
 export interface AppOptions {
@@ -108,6 +109,10 @@ export function createApp(opts: AppOptions = {}) {
 
   const aiChat = createAiChatRoute();
   app.post('/aiChat', aiChat.validate, aiChat.handler);
+
+  // The bridge: generic data endpoint for the original (legacy) UI.
+  app.post('/db', handleDbRequest);
+  app.get('/db/health', (c) => c.json({ ok: true, models: 7 }));
 
   const rag = createRagRoutes();
   app.get('/rag/search', rag.search);

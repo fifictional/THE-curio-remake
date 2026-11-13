@@ -1,0 +1,100 @@
+---
+alwaysApply: true
+---
+
+## Documentation
+The following documents will be helpful when working with step functions
+- https://docs.aws.amazon.com/step-functions/latest/dg/welcome.html
+- https://docs.jsonata.org/overview.html
+
+## Facts
+We are using *JSONata*, NOT JSONPath.
+
+## JSONata vs JSONPath - Critical Differences
+
+### Query Language
+- **We use JSONata** - specified via `queryLanguage: sfn.QueryLanguage.JSONATA` in the StateMachine
+- **We do NOT use JSONPath** - `parameters` field is JSONPath-only and must NOT be used
+
+### Variable Access
+- In JSONata, state input is accessed via `$states.input`, NOT `$`
+- Example: `'{% $states.input.taskUuid %}'` not `'{% $taskUuid %}'` (when reading from input)
+- Once assigned to variables, they can be accessed as `$taskUuid`, `$documentUuid`, etc.
+
+## Pass States with JSONata
+
+### Creating Variables
+- Use `assign` property to create variables in the execution context
+- `assign` accepts an object with JSONata expressions: `assign: { variableName: '{% $states.input.field %}' }`
+- Variables created with `assign` are available to all subsequent states as `$variableName`
+
+### Common Mistakes to Avoid
+- ❌ **DO NOT use `parameters`** - this is JSONPath-only and will not work with JSONata
+- ❌ **DO NOT use `resultPath`, `inputPath`, or `outputPath`** - these are JSONPath-only and will cause validation errors
+- ❌ **DO NOT use `result`** - this sets the state output, not variables in execution context
+- ❌ **DO NOT use `$` directly** - use `$states.input.field` to read from state input
+- ✅ **DO use `assign`** - this is the correct way to create variables with JSONata
+
+### Example: Pass State to Store Variables
+```typescript
+const storeGlobals = new sfn.Pass(this, 'store-globals', {
+  stateName: 'Store Global Variables',
+  assign: {
+    taskUuid: '{% $states.input.taskUuid %}',
+    documentUuid: '{% $states.input.documentUuid %}',
+    userUuid: '{% $states.input.userUuid %}',
+  },
+});
+```
+
+## LambdaInvoke.jsonata States
+
+### Assign vs Outputs
+- `assign` - creates variables in execution context (use `$variableName` in subsequent states)
+- `outputs` - defines what the state returns to its parent (for parallel states, etc.)
+- Both can be used together: `assign` for variables, `outputs` for state output
+
+### Example: LambdaInvoke with assign
+```typescript
+// assign creates variables for subsequent states in the execution context
+// outputs defines what this state returns to its parent (only needed if parent needs to extract values)
+const step = sfnTasks.LambdaInvoke.jsonata(scope, 'step-name', {
+  lambdaFunction,
+  payload: sfn.TaskInput.fromObject({
+    documentUuid: '{% $documentUuid %}', // Uses variable from execution context
+  }),
+  // outputs: only needed if parent state (e.g., parallel) needs to extract specific values
+  // If not needed, use outputs: {} or omit it
+  outputs: {},
+  // assign: creates variable in execution context for subsequent states to use
+  assign: {
+    documentUrl: '{% $states.result.Payload.documentUrl %}' // Now available as $documentUrl
+  },
+});
+// In subsequent states, use $documentUrl (from assign), not $states.result.Payload.documentUrl
+// Note: outputs and assign should serve different purposes - don't duplicate the same value
+```
+
+## Catch Handlers with JSONata
+
+### Important Restrictions
+- ❌ **DO NOT use `resultPath` in catch handlers** - this is JSONPath-only and will cause validation errors
+- Catch handlers in JSONata mode cannot use path manipulation fields
+- Simply catch the error and transition to the next state without path manipulation
+
+### Example: Catch Handler
+```typescript
+// Correct: No resultPath
+const stepWithCatch = someStep
+  .addCatch(catchTargetState, {
+    errors: ['States.ALL'],
+  })
+  .next(nextState);
+
+// Wrong: resultPath is JSONPath-only
+const stepWithCatchWrong = someStep
+  .addCatch(catchTargetState, {
+    errors: ['States.ALL'],
+    resultPath: '$.error', // ❌ This will fail with JSONata
+  });
+```

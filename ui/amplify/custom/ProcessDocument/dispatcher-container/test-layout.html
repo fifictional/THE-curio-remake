@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dispatcher Slots - Test Layout</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+    .meta { margin-bottom: 12px; font-size: 1.125rem; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(192px, 1fr)); gap: 8px; }
+    .slot { border: 1px solid #ddd; border-radius: 6px; padding: 8px; height: 84px; display: flex; flex-direction: column; justify-content: space-between; }
+    .slot.active { background: #ffe8e8; border-color: #f5b5b5; }
+    .slot.free { background: #e8ffef; border-color: #b5f5c6; }
+    
+    /* Top row: slot number (left) and task type/free (right) */
+    .row-top { display: flex; justify-content: space-between; align-items: center; }
+    .slot-number { font-weight: bold; font-size: 0.75rem; }
+    .task-type { font-weight: bold; font-size: 0.625rem; }
+    
+    /* Middle row: task UUID */
+    .row-middle { font-size: 0.5rem; color: #6b7280; word-break: break-all; text-align: center; min-height: 1.5rem; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+    
+    /* Bottom row: clock display (only when active) */
+    .row-bottom { display: flex; flex-direction: column; gap: 2px; }
+    .clock-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .seconds { font-size: 1rem; font-weight: bold; color: #ef4444; min-width: 2ch; text-align: left; }
+    .bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+    .fill { height: 100%; background: #ef4444; width: 0%; transition: width .3s; }
+    .clock-bottom { font-size: 0.625rem; color: #6b7280; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Dispatcher Slots</h1>
+  <div class="meta" id="meta"></div>
+  <div class="grid" id="grid"></div>
+  <script>
+    // Mock data generator
+    function generateMockData() {
+      const workerSlots = 50;
+      const cooldownMs = 60000;
+      const now = Date.now();
+      
+      const slots = [];
+      for (let i = 0; i < workerSlots; i++) {
+        // Randomly make some slots active (30% chance)
+        const isActive = Math.random() < 0.3;
+        const msRemaining = isActive ? Math.floor(Math.random() * cooldownMs) : 0;
+        const untilMs = now + msRemaining;
+        
+        slots.push({
+          untilMs,
+          msRemaining,
+          secondsRemaining: Math.ceil(msRemaining / 1000),
+          active: isActive,
+          taskType: isActive ? ['CHAT', 'QUESTION_GENERATION', 'DOCUMENT_PROCESSING'][Math.floor(Math.random() * 3)] : null,
+          taskUuid: isActive ? 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' : null,
+        });
+      }
+      
+      const usedCount = slots.filter(s => s.active).length;
+      const nextReadyMs = Math.min(...slots.map(s => s.untilMs));
+      
+      return {
+        workerSlots,
+        cooldownMs,
+        usedCount,
+        freeCount: workerSlots - usedCount,
+        nextReadyIso: new Date(nextReadyMs).toISOString(),
+        nowIso: new Date(now).toISOString(),
+        slots,
+      };
+    }
+
+    function render(data) {
+      const meta = document.getElementById('meta');
+      meta.textContent = 'Used: ' + data.usedCount + '/' + data.workerSlots + ' • Next ready: ' + data.nextReadyIso;
+
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      const maxSeconds = Math.ceil(data.cooldownMs / 1000);
+      data.slots.forEach((s, i) => {
+        const div = document.createElement('div');
+        div.className = 'slot ' + (s.active ? 'active' : 'free');
+        const pct = Math.min(100, Math.max(0, (s.secondsRemaining / maxSeconds) * 100));
+        
+        let content = '';
+        
+        // Top row: slot number (left) and task type/free (right)
+        content += '<div class="row-top">';
+        content += '<div class="slot-number">#' + i + '</div>';
+        content += '<div class="task-type">' + (s.active && s.taskType ? s.taskType : 'FREE') + '</div>';
+        content += '</div>';
+        
+        // Middle row: task UUID (only if active)
+        content += '<div class="row-middle">';
+        if (s.active && s.taskUuid) {
+          content += s.taskUuid;
+        }
+        content += '</div>';
+        
+        // Bottom row: clock display (only if active)
+        if (s.active) {
+          content += '<div class="row-bottom">';
+          content += '<div class="clock-top">';
+          content += '<div class="seconds">' + s.secondsRemaining + '</div>';
+          content += '<div class="bar"><div class="fill" style="width:' + pct + '%"></div></div>';
+          content += '</div>';
+          content += '<div class="clock-bottom">until: ' + new Date(s.untilMs).toLocaleTimeString() + '</div>';
+          content += '</div>';
+        }
+        
+        div.innerHTML = content;
+        grid.appendChild(div);
+      });
+    }
+
+    function tick() {
+      const data = generateMockData();
+      render(data);
+    }
+
+    // Initial render and update every second
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
+

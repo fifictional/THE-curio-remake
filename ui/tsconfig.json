@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@amplify/*": ["./amplify/*"],
+      "@ai/*": ["./amplify/ai/*"],
+      "@ai-agents/*": ["./amplify/ai/agents/*"],
+      "@ai-providers": ["./amplify/ai/providers/index"],
+      "@ai-providers/*": ["./amplify/ai/providers/*"],
+      "@ai-intents": ["./amplify/ai/intents/index"],
+      "@ai-intents/*": ["./amplify/ai/intents/*"],
+      "@ai-tools/*": ["./amplify/ai/tools/*"],
+      "@database-schema": ["./amplify/data/resource"],
+      "@ssr/*": ["./src/lib/ssr/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "amplify", "e2e", "scripts", "playwright.config.ts", "server"]
+}

@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+---
+
+# Refactor Tool
+
+A focused rule for capturing and managing refactor tasks without changing code.
+
+## Purpose
+- Provide a lightweight, consistent workflow for refactor work items.
+- Enforce explicit permission before any edits.
+- Keep refactor plans simple and incremental.
+
+## Storage
+- File: `REFACTORME.MD` at the project root.
+- If missing, create it with a `# Refactors` header.
+- Each task is a section using this format:
+
+## [P2] Refactor: <short action and scope>
+Scope: <files/dirs/modules>
+Context: <why>
+Proposed change:
+- <bullet 1>
+- <bullet 2>
+Acceptance criteria:
+- <bullet 1>
+- <bullet 2>
+Risks/rollback: <optional>
+Status: pending | in_progress | completed | cancelled
+
+Notes:
+- Priority is P0 | P1 | P2 | P3 (default P2).
+- Use verb-led titles.
+
+## Operational Rules
+1. Do not edit code without explicit permission from the user.
+2. Default to the smallest viable refactor aligned with KISS.
+3. Split large refactors into atomic tasks; avoid operational steps as tasks.
+4. Keep only one task in_progress at a time; mark complete immediately on finish.
+5. Ask up to 3 clarifying questions only when necessary.
+
+## Commands
+- Count refactor tasks
+- Add refactor task
+- List refactor tasks
+- Update refactor task status
+- Cancel refactor task
+
+### Counting rules for "Count refactor tasks"
+- Source: `REFACTORME.MD` at project root; if missing, return 0.
+- Count lines that match the exact heading pattern:
+  - Regex: `^## \\[(P0|P1|P2|P3)\\] Refactor:`
+- The count N is the number of such headings.
+- Output: `Refactors tracked: N`
+

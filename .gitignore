@@ -5,3 +5,9 @@ node_modules/
 .local/
 dist/
 .DS_Store
+
+# legacy UI (strangler copy)
+ui/node_modules/
+ui/.next/
+ui/amplify_outputs.json
+ui/.env*.local

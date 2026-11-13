@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F4F3ED;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plus-jakarta-sans);
+  --font-mono: var(--font-jetbrains-mono);
+
+  --color-card-foreground: #0A0A0A;
+  --color-muted-foreground: #737373;
+
+  --color-headers: #A0A0A0;
+  --color-paragraphs: #727A76;
+  --color-accent: #F5F5F5;
+  --color-border: #E5E5E5;
+
+  --color-circle: #D9D9D9;
+  --color-curio-light-grey: #F1F1F1;
+  --color-curio-timer: #9E9E9E;
+
+  --color-focus: #F4F3ED;
+  --color-curio-green: #126310;
+  --color-active: #F9FFFB;
+  --color-chat-panel: #FCFBFA;
+  --color-chat-panel-border: #EAECF0;
+
+  --color-library: #F5F5F5;
+
+  --color-primary: #171717;
+  --color-primary-foreground: #FAFAFA;
+  --color-secondary: #171717;
+  --color-secondary-foreground: #FAFAFA;
+
+  --color-deep-focus: #F4F3ED;
+
+  --color-hint: #E6BA0A;
+  --color-hint-border: #BD9F05;
+  --color-focus-text: #b9b9b6;
+
+  --color-file-browser-header: #F8F6EE;
+}
+
+.radix-themes {
+	--default-font-family: var(--font-plus-jakarta-sans);
+	--heading-font-family: var(--font-plus-jakarta-sans);
+	--code-font-family: var(--font-plus-jakarta-sans);
+	--strong-font-family: var(--font-plus-jakarta-sans);
+	--em-font-family: var(--font-plus-jakarta-sans);
+	--quote-font-family: var(--font-plus-jakarta-sans);
+}
+
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    --background: #000000;
+    --foreground: #171717;
+  }
+} */
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-plus-jakarta-sans);
+}
+
+[data-amplify-authenticator] {
+  --amplify-components-authenticator-router-box-shadow: 0;
+  --amplify-components-authenticator-router-border-width: 0;
+  --amplify-components-authenticator-form-padding: var(--amplify-space-medium) var(--amplify-space-xl) var(--amplify-space-xl);
+  --amplify-components-button-primary-background-color: var(--color-primary);
+  --amplify-components-fieldcontrol-focus-box-shadow: 0 0 0 2px var(--color-primary);
+  --amplify-components-tabs-item-active-border-color: var(--color-primary);
+  --amplify-components-tabs-item-color: var(--color-primary);
+  --amplify-components-tabs-item-active-color: var(--color-primary);
+  --amplify-components-button-link-color: var(--color-primary);
+
+  .amplify-tabs .amplify-tabs__list {
+    display: none;
+  }
+
+  [data-amplify-router] {
+    margin-top: var(--amplify-space-large);
+    margin-bottom: var(--amplify-space-large);
+  }
+
+  .amplify-button {
+    border-radius: var(--amplify-space-large);
+    margin-top: var(--amplify-space-large);
+  }
+  
+  /* Hide show password button */
+  .amplify-button.amplify-field__show-password {
+    display: none;
+  }
+  .amplify-passwordfield .amplify-input {
+    border-radius: var(--amplify-space-large);
+  }
+
+  .amplify-input {
+    border-radius: var(--amplify-space-large);
+    border-color: var(--color-gray-300);
+  }
+
+  .amplify-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+}
+
+.MathJax {
+  margin: 0 !important;
+}
+
+/* Math element styling */
+.math-inline {
+  display: inline;
+}
+
+.math-block {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.bounding-box.highlighted {
+  background-color: rgba(255, 255, 0, 0.5);
+}
+
+.bounding-box.current-match {
+  background-color: rgba(255, 0, 0, 0.5);
+}
+
+mjx-frac {
+  font-size: 1.4em;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg, rgba(156, 163, 175, 0.4) 0%, rgba(75, 85, 99, 0.6) 50%, rgba(156, 163, 175, 0.4) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

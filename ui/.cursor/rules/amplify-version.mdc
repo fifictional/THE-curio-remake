@@ -1,0 +1,9 @@
+---
+description: A rule to make sure that we are always using Amplify V2
+alwaysApply: true
+---
+## Amplify Version
+There are two verions of Amplify. We are using `Gen 2` on this project and Next.js as the framework.  When making suggestions that modify Amplify code, you need to be certain that you are making suggestions for Gen 2, because you have previously mixed versions, which won't work.
+
+## Documentation
+The documentation for Amplify on Next.js can be found at https://docs.amplify.aws/nextjs/.  This is the `Gen 2` documentation.  If you are referencing documentation from a web search and the URL contains /gen1/ you are looking at the wrong documentation and should disregard this information.
