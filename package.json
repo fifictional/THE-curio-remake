@@ -12,7 +12,8 @@
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
-    "db:seed": "tsx server/seed.ts"
+    "db:seed": "tsx server/seed.ts",
+    "db:rls": "tsx server/db/rls.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.23",
