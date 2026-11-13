@@ -156,6 +156,33 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
 
     try {
       const data = await run();
+
+      /*
+       * v0 stub: the old UI's `UserProfile` has onboarding flags and a
+       * `userUuid` that the identity table does not (it has `id`). Without these
+       * the shell bounces between /signin and /welcome forever, because
+       * `!userProfile.onboardingCompleted` is always true.
+       */
+      if (body.model === 'UserProfile') {
+        const shape = (row: Record<string, unknown> | undefined) =>
+          row
+            ? {
+                ...row,
+                userUuid: row.id,
+                onboardingCompleted: true,
+                onboardingSkipped: true,
+                memoryDisabled: false,
+              }
+            : null;
+        // The identity table has no RLS (Better Auth writes it before a user
+        // context exists), so the bridge restricts it to the caller here.
+        const shaped = Array.isArray(data)
+          ? data
+              .map((r) => shape(r as Record<string, unknown>))
+              .filter((r) => r && r.id === identity.sub)
+          : shape(data as Record<string, unknown> | undefined);
+        return c.json({ data: shaped, errors: [] });
+      }
       const shaped = Array.isArray(data) ? data : data;
       return c.json({ data: shaped, errors: [] });
     } catch (err) {

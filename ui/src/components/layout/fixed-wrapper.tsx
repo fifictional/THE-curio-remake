@@ -153,9 +153,11 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
   }
 
   if (!isUserAuthenticated && !guestRoutes.some(route => path.startsWith(route))) {
-    // redirect unauthenticated user to sign in/up with redirect URL
-    const currentUrl = `${path}${window.location.search}`;
-    const redirectUrl = encodeURIComponent(currentUrl);
+    // Redirect unauthenticated users to sign in, preserving only the path.
+    // Using the full URL (path + search) here caused an exponential
+    // `?redirect=...?redirect=...` loop, because the search string already
+    // contained the previous redirect.
+    const redirectUrl = encodeURIComponent(path);
     
     // Check if utm_source=fb to redirect to signup instead of signin
     const searchParams = new URLSearchParams(window.location.search);
@@ -166,6 +168,7 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
     } else {
       redirect(`/signin?redirect=${redirectUrl}`);
     }
+    return <>null</>;
   }
 
   if (isUserAuthenticated && [...guestRoutes].some(route => path.startsWith(route))) {
