@@ -3,98 +3,111 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Local API — walking skeleton</title>
+    <title>Curio — local chat</title>
     <style>
-      :root { color-scheme: light dark; }
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
       body {
-        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-        max-width: 46rem;
-        margin: 3rem auto;
-        padding: 0 1.25rem;
+        font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 46rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #111; background: #fafafa;
       }
-      h1 { font-size: 1.25rem; margin: 0 0 .25rem; }
-      p.sub { margin: 0 0 2rem; opacity: .65; font-size: .875rem; }
+      h1 { font-size: 1.2rem; margin: 0 0 .2rem; }
+      p.sub { margin: 0 0 1.5rem; opacity: .6; font-size: .82rem; }
+      .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
       button {
-        font: inherit;
-        padding: .55rem 1rem;
-        border-radius: .5rem;
-        border: 1px solid #6366f1;
-        background: #6366f1;
-        color: #fff;
-        cursor: pointer;
+        font: inherit; padding: .45rem .85rem; border-radius: .45rem;
+        border: 1px solid #6366f1; background: #6366f1; color: #fff; cursor: pointer;
       }
-      button:disabled { opacity: .5; cursor: default; }
-      h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin: 2rem 0 .5rem; }
-      pre {
-        background: rgba(127,127,127,.12);
-        padding: .9rem 1rem;
-        border-radius: .5rem;
-        overflow: auto;
-        font-size: .8rem;
-        margin: 0;
-      }
-      .row { display: flex; gap: .5rem; align-items: center; }
+      button.ghost { background: #fff; color: #111; border-color: #d4d4d4; }
+      button:disabled { opacity: .45; cursor: default; }
+      .msg { background: #fff; border: 1px solid #e5e5e5; border-radius: .6rem; padding: .7rem .9rem; margin-bottom: .5rem; }
+      .msg.user { border-left: 3px solid #6366f1; }
+      .msg.assistant { border-left: 3px solid #10b981; }
+      .meta { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; opacity: .5; margin-bottom: .2rem; }
+      h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; opacity: .55; margin: 2rem 0 .5rem; }
+      pre { background: #fff; border: 1px solid #e5e5e5; border-radius: .6rem; padding: .8rem 1rem; overflow: auto; font-size: .78rem; margin: 0; }
+      input[type=text] { font: inherit; padding: .45rem .6rem; border: 1px solid #d4d4d4; border-radius: .45rem; flex: 1 1 22rem; }
     </style>
   </head>
   <body>
-    <h1>Local API — walking skeleton</h1>
-    <p class="sub">
-      The button calls <code>POST /moveChat</code>. That route is a copy of
-      <code>amplify/hono/routes/move-chat.ts</code>, running on Node with a fake
-      database. No AWS.
-    </p>
+    <h1>Curio — local chat</h1>
+    <p class="sub">Real rows from Postgres. Hit the API directly and reload.</p>
 
     <div class="row">
-      <button id="go">Move chat → space-new</button>
-      <button id="reset" style="background:transparent;color:inherit;border-color:rgba(127,127,127,.5)">Reset</button>
+      <input type="text" id="chat" value="44444444-4444-4444-8444-444444444444" />
+      <button class="ghost" id="reload">Reload</button>
+      <button class="ghost" id="reset" title="re-seed requires: npm run db:seed">Info</button>
     </div>
 
-    <h2>Route response</h2>
-    <pre id="response">—</pre>
+    <div id="messages"></div>
 
-    <h2>Data calls the fake client recorded</h2>
-    <pre id="calls">—</pre>
+    <h2>Send a message</h2>
+    <div class="row">
+      <input type="text" id="text" placeholder="type something…" />
+      <button id="send">Send</button>
+    </div>
+
+    <h2>Move chat to a space</h2>
+    <div class="row">
+      <button id="move-old" class="ghost">→ Biology (old)</button>
+      <button id="move-new">→ Chemistry (new)</button>
+    </div>
+
+    <h2>Last response</h2>
+    <pre id="out">—</pre>
 
     <script>
-      const responseEl = document.getElementById('response');
-      const callsEl = document.getElementById('calls');
-      const goBtn = document.getElementById('go');
-      const resetBtn = document.getElementById('reset');
+      const SPACE_OLD = '22222222-2222-4222-8222-222222222222';
+      const SPACE_NEW = '33333333-3333-4333-8333-333333333333';
 
-      const show = (el, value) => {
-        el.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-      };
+      const $ = (id) => document.getElementById(id);
+      const out = (v) => { $('out').textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+      const chatId = () => $('chat').value.trim();
 
-      async function refreshCalls() {
-        const res = await fetch('/__calls');
-        const calls = await res.json();
-        show(callsEl, calls.length ? calls.map((c, i) => `${i + 1}. ${c.op}  ${JSON.stringify(c.args)}`) : 'no calls yet');
+      async function load() {
+        $('messages').innerHTML = '<p class="sub">loading…</p>';
+        const res = await fetch('/messages?chat=' + encodeURIComponent(chatId()));
+        const body = await res.json();
+        if (!body.success) { $('messages').innerHTML = '<p class="sub">' + body.error + '</p>'; return; }
+        if (!body.messages.length) { $('messages').innerHTML = '<p class="sub">no messages for that chat id</p>'; return; }
+        $('messages').innerHTML = body.messages.map((m) =>
+          '<div class="msg ' + m.role + '"><div class="meta">' + m.role +
+          ' · ' + new Date(m.createdAt).toLocaleString() + '</div>' + m.content + '</div>').join('');
       }
 
-      goBtn.addEventListener('click', async () => {
-        goBtn.disabled = true;
+      async function send() {
+        const content = $('text').value.trim();
+        if (!content) return;
+        $('send').disabled = true;
         try {
-          const res = await fetch('/moveChat', {
+          const res = await fetch('/messages', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ chatUuid: 'chat-abc', spaceUuid: 'space-new' }),
+            body: JSON.stringify({ chatUuid: chatId(), role: 'user', content }),
           });
-          show(responseEl, { status: res.status, body: await res.json() });
-          await refreshCalls();
-        } catch (err) {
-          show(responseEl, String(err));
-        } finally {
-          goBtn.disabled = false;
-        }
-      });
+          out({ status: res.status, body: await res.json() });
+          $('text').value = '';
+          await load();
+        } finally { $('send').disabled = false; }
+      }
 
-      resetBtn.addEventListener('click', async () => {
-        await fetch('/__reset', { method: 'POST' });
-        show(responseEl, '—');
-        show(callsEl, '—');
-      });
+      async function move(spaceUuid) {
+        const res = await fetch('/moveChat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ chatUuid: chatId(), spaceUuid }),
+        });
+        out({ status: res.status, body: await res.json() });
+      }
 
-      refreshCalls();
+      $('reload').addEventListener('click', load);
+      $('send').addEventListener('click', send);
+      $('text').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+      $('move-old').addEventListener('click', () => move(SPACE_OLD));
+      $('move-new').addEventListener('click', () => move(SPACE_NEW));
+      $('reset').addEventListener('click', () => out('re-seed with:  npm run db:seed'));
+
+      load();
     </script>
   </body>
 </html>

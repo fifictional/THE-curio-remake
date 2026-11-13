@@ -2,25 +2,17 @@
  * The data seam.
  *
  * `HonoDataClient` is the ONLY thing a route knows about the database. In the
- * Amplify build this type is `Client<Schema>` (a GraphQL client for AppSync).
- * Here it is a structural interface listing the five calls that
- * `routes/move-chat.ts` actually makes.
+ * old AWS build this type was `Client<Schema>` (a GraphQL client for AppSync).
+ * Here it is a structural interface; `postgres-data.ts` implements it over
+ * Drizzle, `fake-data.ts` implements it in memory for tests.
  *
- * This file is the answer to "which database are we using?": swapping Postgres
- * or DynamoDB in means writing a new object with this shape. Nothing else in
- * `server/` changes.
+ * Two Amplify-isms are preserved deliberately so the ported route
+ * (`routes/move-chat.ts`) runs unchanged:
+ *   1. results are `{ data, errors }`, not throw-on-error
+ *   2. read-by-index methods are named after the old index
+ *      (`listFlashcardByChatUuidAndCreatedAt`)
  *
- * Two Amplify-isms leak into this interface and are worth naming, because they
- * are what a future data layer must reproduce (or eliminate):
- *
- *   1. Results are `{ data, errors }`, not throw-on-error.
- *   2. Read-by-index methods are named after the index, e.g.
- *      `listFlashcardByChatUuidAndCreatedAt` — generated from
- *      `.secondaryIndexes((i) => [i('chatUuid').sortKeys(['createdAt'])])`.
- *
- * Methods are typed with `unknown`-ish inputs (matching how the route calls
- * them) rather than Amplify's generated selection-set unions, which are huge
- * enough to blow up `tsc` instantiation (see the comment in move-chat.ts).
+ * They are worth removing later — see docs/adr/0001 "the seam" note.
  */
 
 export interface AmplifyResult<T> {
@@ -38,19 +30,30 @@ export interface ChatRecord {
   spaceUuid?: string | null;
   documentUuid?: string | null;
   name?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+}
+
+export interface MessageRecord {
+  messageUuid: string;
+  chatUuid: string;
+  role: 'user' | 'assistant';
+  type?: 'text' | 'tool' | null;
+  content: string;
+  isCompleted?: boolean | null;
+  agentStatus?: string | null;
+  createdAt?: Date | string | null;
 }
 
 export interface FlashcardRecord {
   flashcardUuid: string;
-  createdAt: string;
+  createdAt: Date | string;
   spaceUuid?: string | null;
 }
 
 export interface QuestionRecord {
   questionUuid: string;
-  createdAt: string;
+  createdAt: Date | string;
   spaceUuid?: string | null;
 }
 
@@ -62,6 +65,21 @@ export interface HonoDataClient {
         input: Record<string, unknown>,
         options?: UpdateOptions,
       ): Promise<AmplifyResult<ChatRecord>>;
+    };
+    Message: {
+      listByChat(
+        input: { chatUuid: string },
+        options?: { limit?: number },
+      ): Promise<AmplifyResult<MessageRecord[]>>;
+      create(input: {
+        chatUuid: string;
+        role: 'user' | 'assistant';
+        content: string;
+        type?: 'text' | 'tool';
+        isCompleted?: boolean;
+        toolName?: string | null;
+        toolArguments?: unknown;
+      }): Promise<AmplifyResult<MessageRecord>>;
     };
     Flashcard: {
       listFlashcardByChatUuidAndCreatedAt(

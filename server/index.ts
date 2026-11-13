@@ -1,20 +1,14 @@
 /**
- * Local API server — the walking skeleton.
+ * Local API server.
  *
- * Runs the repo's real `moveChat` route over plain HTTP, with a fake data
- * client. No Lambda, no AppSync, no AWS credentials, no database.
+ *   npm run dev   →  http://localhost:3101
  *
- * Run:  npm run dev:server
- * Open: http://localhost:3101
- *
- * Routes:
- *   GET  /           — one page, one button (calls POST /moveChat)
- *   GET  /__hello    — smoke check
- *   GET  /__calls    — every data call the fake client recorded
- *   POST /__reset    — clear the recorded calls
- *   POST /moveChat   — the real route, copied from amplify/hono/routes/
+ * If DATABASE_URL is set, the app uses Postgres (`postgres-data.ts`).
+ * Otherwise it falls back to the in-memory fake client so the server still
+ * boots for UI work or a quick demo.
  */
 
+import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,18 +16,26 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 
 import { createApp } from './app';
+import type { HonoDataClient } from './data-client';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const indexHtml = readFileSync(join(here, 'public', 'index.html'), 'utf8');
 
-const { app } = createApp();
+let client: HonoDataClient | undefined;
+
+if (process.env.DATABASE_URL) {
+  const { createPostgresDataClient } = await import('./postgres-data');
+  client = createPostgresDataClient();
+  console.log('  data:       postgres (DATABASE_URL)');
+} else {
+  console.log('  data:       in-memory fake (no DATABASE_URL)');
+}
+
+const { app } = createApp(client);
 app.get('/', (c) => c.html(indexHtml));
 
-// 3101 rather than 3001: 3001 is commonly taken by other local dev servers.
 const port = Number(process.env.PORT ?? 3101);
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`\n  local api → http://localhost:${info.port}`);
-  console.log(`  real route: amplify/hono/routes/move-chat.ts (copied)`);
-  console.log(`  data:       server/fake-data.ts (no database)\n`);
+  console.log(`  local api → http://localhost:${info.port}\n`);
 });

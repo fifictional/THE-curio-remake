@@ -1,24 +1,26 @@
 /**
- * App factory — the Hono app with its routes, with no listener attached.
+ * App factory — routes with no listener attached, so tests can call
+ * `app.request(...)` without opening a port.
  *
- * Kept separate from `index.ts` so tests can call `app.request(...)` directly
- * without opening a port (same pattern the repo's own tests use:
- * `amplify/hono/__tests__/*.test.ts` build a Hono app and invoke it in-process).
+ * The data client is injected: `postgres-data.ts` in dev/production,
+ * `fake-data.ts` in tests.
  */
 
 import { Hono } from 'hono';
 
+import type { HonoDataClient } from './data-client';
 import { createFakeDataClient, type RecordedCall } from './fake-data';
+import { createMessagesRoute } from './routes/messages';
 import { createMoveChatRoute } from './routes/move-chat';
 import type { HonoEnv } from './types';
 
-export function createApp() {
+export function createApp(injectedClient?: HonoDataClient) {
   const calls: RecordedCall[] = [];
-  const client = createFakeDataClient(calls);
+  const client = injectedClient ?? createFakeDataClient(calls);
 
   const app = new Hono<HonoEnv>();
 
-  // Stand-in for shared/middleware/auth-identity.ts (no AppSync here).
+  // Stand-in for the old auth-identity middleware. Replaced by Better Auth.
   app.use('*', async (c, next) => {
     c.set('identity', null);
     c.set('invocationType', 'direct');
@@ -26,8 +28,6 @@ export function createApp() {
     await next();
   });
 
-  // Stand-in for shared/middleware/error-boundary.ts (same JSON failure shape,
-  // without the Sentry dependency).
   app.onError((err, c) => {
     console.error('[server] route error:', err.message);
     return c.json({ success: false, error: err.message }, 500);
@@ -36,9 +36,9 @@ export function createApp() {
   app.get('/__hello', (c) =>
     c.json({
       success: true,
-      runtime: 'node (no lambda)',
+      runtime: 'node',
+      dataClient: injectedClient ? 'injected' : 'fake',
       invocationType: c.var.invocationType,
-      identityPresent: c.var.identity !== null,
       requestId: c.var.requestId,
     }),
   );
@@ -49,6 +49,10 @@ export function createApp() {
     calls.length = 0;
     return c.json({ success: true, cleared: true });
   });
+
+  const messagesRoute = createMessagesRoute(client);
+  app.get('/messages', messagesRoute.list);
+  app.post('/messages', messagesRoute.createValidate, messagesRoute.create);
 
   const moveChat = createMoveChatRoute(client);
   app.post('/moveChat', moveChat.validate, moveChat.handler);

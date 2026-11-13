@@ -33,6 +33,47 @@ export function createFakeDataClient(calls: RecordedCall[]): HonoDataClient {
 
   return {
     models: {
+      Message: {
+        listByChat: async ({ chatUuid }, options?: { limit?: number }) => {
+          record('Message.listByChat', { chatUuid }, options);
+          return ok([
+            {
+              messageUuid: 'message-1',
+              chatUuid,
+              role: 'user' as const,
+              type: 'text' as const,
+              content: 'what is photosynthesis',
+              isCompleted: true,
+              agentStatus: null,
+              createdAt: '2026-11-12T10:00:00Z',
+            },
+            {
+              messageUuid: 'message-2',
+              chatUuid,
+              role: 'assistant' as const,
+              type: 'text' as const,
+              content: 'plants making food from light',
+              isCompleted: true,
+              agentStatus: null,
+              createdAt: '2026-11-12T10:00:05Z',
+            },
+          ]);
+        },
+        create: async (input) => {
+          record('Message.create', input);
+          return ok({
+            messageUuid: 'message-new',
+            chatUuid: input.chatUuid,
+            role: input.role,
+            type: input.type ?? 'text',
+            content: input.content,
+            isCompleted: input.isCompleted ?? true,
+            agentStatus: null,
+            createdAt: '2026-11-12T10:01:00Z',
+          });
+        },
+      },
+
       Chat: {
         get: async ({ chatUuid }) => {
           record('Chat.get', { chatUuid });

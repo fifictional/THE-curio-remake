@@ -11,14 +11,22 @@
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from './app';
+import type { RecordedCall } from './fake-data';
 
-const postMoveChat = (body: unknown) => {
+interface MoveChatResult {
+  res: Response;
+  calls: RecordedCall[];
+  json: unknown;
+}
+
+const postMoveChat = async (body: unknown): Promise<MoveChatResult> => {
   const { app, calls } = createApp();
-  return app.request('/moveChat', {
+  const res = await app.request('/moveChat', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(async (res) => ({ res, calls, json: await res.json() }));
+  });
+  return { res, calls, json: await res.json() };
 };
 
 describe('moveChat over plain HTTP', () => {
