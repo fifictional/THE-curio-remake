@@ -12,6 +12,20 @@ npm run dev               # http://localhost:3101
 npm test
 ```
 
+## Tests
+
+```bash
+npm test          # 5 unit + 7 integration (integration skips without a DB)
+npm run qdrant:smoke
+```
+
+The integration suite runs against real Postgres and real Better Auth. It
+asserts the auth boundary (anonymous / owner / other user) **and** that
+isolation is enforced by Postgres RLS itself, not just by route guards.
+
+CI (`.github/workflows/ci.yml`) runs both packages with Postgres + Qdrant
+service containers.
+
 ## State
 
 - `server/` — Hono API on plain Node. Real routes ported from the old repo,
