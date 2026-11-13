@@ -9,7 +9,8 @@
  * not need to change.
  */
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3101';
+// Same-origin: next.config.js rewrites these paths to the API on :3101.
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export interface LocalUser {
   sub: string;

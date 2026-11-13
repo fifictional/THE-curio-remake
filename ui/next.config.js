@@ -1,7 +1,21 @@
 const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
+const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:3101';
+
 const nextConfig = {
+  /**
+   * Proxy the new API so the browser is same-origin.
+   *
+   * The legacy UI runs on :3200 and the API on :3101. Calling the API directly
+   * would need CORS plus `credentials: include`, and would make the Better Auth
+   * session cookie third-party. Rewrites keep everything first-party, which is
+   * also how it will run in production.
+   */
+  async rewrites() {
+    const paths = ['/me', '/db', '/db/:path*', '/messages', '/aiChat', '/moveChat', '/rag/:path*', '/api/auth/:path*'];
+    return paths.map((path) => ({ source: path, destination: `${API_ORIGIN}${path}` }));
+  },
   images: {
     remotePatterns: [
       {
