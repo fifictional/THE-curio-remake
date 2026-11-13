@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAnalytics, useCommonContext, useSessionContext } from "@/providers";
-import { signOut } from "aws-amplify/auth";
+import { signOut } from "@/lib/local-auth";
 import { cn } from "@/lib/utils";
 import { useDocumentsByUserApi } from "@/hooks/api/documents";
 import { useChatsByUserApi } from "@/hooks/api/chats";

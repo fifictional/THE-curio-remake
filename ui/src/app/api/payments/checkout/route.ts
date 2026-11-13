@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     let givenName: string | undefined;
     let familyName: string | undefined;
     try {
-      const tokens = await (await import('aws-amplify/auth')).fetchAuthSession();
+      const tokens = await (await import('@/lib/local-auth')).fetchAuthSession();
       email = tokens?.tokens?.idToken?.payload?.email as string | undefined;
       givenName = tokens?.tokens?.idToken?.payload?.given_name as string | undefined;
       familyName = tokens?.tokens?.idToken?.payload?.family_name as string | undefined;

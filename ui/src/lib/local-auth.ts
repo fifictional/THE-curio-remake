@@ -42,7 +42,13 @@ export async function fetchAuthSession() {
   return {
     tokens: {
       idToken: {
-        payload: { sub: me.sub, email: me.email, 'cognito:groups': [] as string[] },
+        payload: {
+          sub: me.sub,
+          email: me.email,
+          given_name: (me.name ?? '').split(' ')[0],
+          family_name: (me.name ?? '').split(' ').slice(1).join(' '),
+          'cognito:groups': [] as string[],
+        },
         toString: () => 'local',
       },
       accessToken: {

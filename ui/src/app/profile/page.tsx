@@ -11,7 +11,7 @@ import { useAmplifyApiClient, useAmplifyUserApiClient, useAnalytics } from "@/pr
 import { useQueryClient } from "@tanstack/react-query";
 import { CancelSubscriptionModal } from "@/components/core/cancel-subscription-modal";
 import { DeleteAccountModal } from "@/components/core/delete-account-modal";
-import { signOut } from "aws-amplify/auth";
+import { signOut } from "@/lib/local-auth";
 import { PersonalizedProfileSection } from "@/components/settings/personalized-profile-section";
 
 export default function ProfilePage() {
