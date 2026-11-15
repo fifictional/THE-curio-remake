@@ -17,6 +17,12 @@ const nextConfig = {
     return paths.map((path) => ({ source: path, destination: `${API_ORIGIN}${path}` }));
   },
   images: {
+    // Next 15 refuses to optimise SVG unless explicitly allowed — /_next/image
+    // answers 400 "image type is not allowed" and every <Image src="/logo.svg">
+    // falls back to its alt text. Policy is locked down to compensate: SVG is
+    // served with a CSP that forbids scripts and sandboxes the document.
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: "https",
