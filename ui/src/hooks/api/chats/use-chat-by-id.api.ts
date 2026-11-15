@@ -83,10 +83,12 @@ export function useChatByIdApi({
     try {
       setWaitingForResponse('chat');
       setLocalTempMessage({ message: message.trim(), image });
-      return await sendMessage({
-        message: message.trim(),
-        image,
-      });
+      const result = await sendMessage({ message: message.trim(), image });
+      // The remake has no subscription to clear the optimistic bubble, and the
+      // message list refetches the persisted row — without this the user sees
+      // their message twice.
+      setLocalTempMessage(null);
+      return result;
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {

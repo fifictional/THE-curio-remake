@@ -7,6 +7,11 @@ import { motion } from "framer-motion"
 import { Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+/**
+ * Remake note: the `super` / `ultra` logo badges are disabled — the product no
+ * longer shows premium branding variants. Re-enable by removing the `false &&`
+ * in the two conditions below.
+ */
 export type SubscriptionLevel = 'none' | 'super' | 'ultra'
 
 export interface CurioLogoProps {
@@ -26,7 +31,7 @@ export function CurioLogo({
 }: CurioLogoProps) {
   const logoContent = (
     <>
-      {subscriptionLevel === 'super' && !collapsed && (
+      {false && subscriptionLevel === 'super' && !collapsed && (
         <motion.div
           initial={{ opacity: 0, scale: 0, rotate: -180 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -50,7 +55,7 @@ export function CurioLogo({
           />
         </motion.div>
       )}
-      {subscriptionLevel === 'ultra' && !collapsed && (
+      {false && subscriptionLevel === 'ultra' && !collapsed && (
         <motion.div
           initial={{ opacity: 0, scale: 0, rotate: -180 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}

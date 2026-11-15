@@ -209,10 +209,8 @@ const SidebarLinks = () => {
         <MessageCircleIcon className="w-5 h-5" />
         {isSidebarOpen && <span className="truncate">New Chat</span>}
       </Link>
-      {!isUserSubscribed && <Link onClick={() => { track('sidebar-exam-bundles-clicked'); closeSidebar(); }} href={`/exam-bundles?discountCode=${flashSale?.discountCode}`} className={cn("flex gap-2 font-bold text-gray-600 hover:text-gray-900 transition-colors cursor-pointer truncate")}>
-        <Crown className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-        {isSidebarOpen && <span className="truncate">Upgrade to SuperCurio</span>}
-      </Link>}
+      {/* Remake: the "Upgrade to SuperCurio" upsell is removed. */}
+
       {/* <Link onClick={() => { track('sidebar-gifting-clicked'); closeSidebar(); }} href="/gifting" className={cn("flex gap-2 font-bold text-gray-600 hover:text-gray-900 transition-colors cursor-pointer truncate")}>
         <Gift className="w-5 h-5" />
         {isSidebarOpen && <span className="truncate">Gift Curio</span>}

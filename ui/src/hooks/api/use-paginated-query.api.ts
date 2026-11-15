@@ -7,6 +7,8 @@ type PaginatedQueryOptions<T> = {
   options: {
     enabled: boolean;
     onData?: (data: T[]) => void;
+    /** Poll interval in ms — stands in for AppSync subscriptions. */
+    refetchInterval?: number | false;
   };
 }
 
@@ -37,6 +39,7 @@ export const usePaginatedQuery = <T>(props: PaginatedQueryOptions<T>) => {
     // freshness, which multiplied the /db traffic on each render.
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    refetchInterval: options.refetchInterval ?? false,
   });
 
   // `onData` is usually an inline arrow function, so including it in the deps
