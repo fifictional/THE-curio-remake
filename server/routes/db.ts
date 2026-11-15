@@ -16,7 +16,7 @@
  * render an empty state rather than crashing the app.
  */
 
-import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, sql, type SQL } from 'drizzle-orm';
 import type { Context } from 'hono';
 
 import { asUser } from '../db/scope';
@@ -115,6 +115,27 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
   }
 
   const table = def.table as Record<string, unknown>;
+  // The old UI sends AppSync-only fields (titleChangedByTheUser,
+  // hasFlashcardsOrQuizzes, …). Postgres rejects unknown columns, so writes are
+  // restricted to the columns this table actually has.
+  const columnMap = getTableColumns(table as never) as Record<
+    string,
+    { dataType?: string }
+  >;
+  const onlyColumns = (value: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => key in columnMap)
+        // The UI sends ISO strings (AppSync's datetime); Drizzle expects Date.
+        .map(([key, raw]) => {
+          const isDate = columnMap[key]?.dataType === 'date';
+          if (isDate && typeof raw === 'string') {
+            const parsed = new Date(raw);
+            return [key, Number.isNaN(parsed.getTime()) ? null : parsed];
+          }
+          return [key, raw];
+        }),
+    );
   const args = body.args ?? {};
   const limit = Math.min(Number(body.options?.limit ?? 500) || 500, 1000);
   const direction = body.options?.sortDirection === 'ASC' ? asc : desc;
@@ -133,14 +154,15 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
       }
 
       if (body.method === 'create') {
-        const values: Record<string, unknown> = { ...args };
+        const values: Record<string, unknown> = onlyColumns(args);
         if (!values[def.pk]) values[def.pk] = crypto.randomUUID();
         const rows = (await q.insert(table).values(values).returning()) as unknown[];
         return rows[0];
       }
 
       if (body.method === 'update') {
-        const { [def.pk]: pkValue, ...rest } = args;
+        const { [def.pk]: pkValue, ...rawRest } = args;
+        const rest = onlyColumns(rawRest);
         const where = eq(table[def.pk] as never, pkValue as never);
         const rows = (await q
           .update(table)
