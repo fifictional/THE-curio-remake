@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 type PaginatedQueryOptions<T> = {
   queryKey: string[];
@@ -38,15 +38,22 @@ export const usePaginatedQuery = <T>(props: PaginatedQueryOptions<T>) => {
     refetchOnMount: true,
   });
 
+  // `onData` is usually an inline arrow function, so including it in the deps
+  // re-ran this effect on every render; when onData calls setState that is an
+  // infinite render loop (the chat input could not accept keystrokes).
+  // Keep the callback in a ref and depend on the data alone.
+  const onDataRef = useRef(options.onData);
+  onDataRef.current = options.onData;
+
   useEffect(() => {
     if (data) {
-      options.onData?.(data.pages.flatMap((page) => page.data));
+      onDataRef.current?.(data.pages.flatMap((page) => page.data));
     }
-  }, [data, options.onData]);
+  }, [data]);
 
   const loadNextPage = useCallback(() => {
     fetchNextPage();
-  }, [refetch]);
+  }, [fetchNextPage]);
 
   return {
     isLoading: isLoading || isFetchingNextPage,

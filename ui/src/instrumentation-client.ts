@@ -44,6 +44,28 @@ export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
  * the terminal running `npm run dev`. Remove when the legacy UI is retired.
  */
 if (typeof window !== 'undefined') {
+  // React logs the component stack through console.error, which is where the
+  // useful half of "Rendered more hooks" lives.
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    try {
+      const text = args
+        .map((a) => (typeof a === 'string' ? a : a instanceof Error ? a.stack : ''))
+        .join(' ')
+        .slice(0, 4000);
+      if (text && !text.includes('Failed to load resource')) {
+        fetch('/log', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ kind: 'console.error', text }),
+        }).catch(() => {});
+      }
+    } catch {
+      /* ignore */
+    }
+    originalError(...args);
+  };
+
   const send = (payload: unknown) => {
     try {
       fetch('/log', {
