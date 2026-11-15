@@ -80,7 +80,7 @@ users is an id mapping — no child-table rewrite.
 
 ```bash
 npm run ui:build   # next build (ui)
-npm run ui:start   # next start on :3200
+npm run ui:start   # next start on :3300
 ```
 
 
