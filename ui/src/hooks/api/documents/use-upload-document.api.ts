@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadData } from '@aws-amplify/storage';
+import { uploadData } from '@/lib/local-storage';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UploadResponse {
@@ -61,7 +61,7 @@ async function storeDocumentData(
   if (companionDesktopUserUuid) {
     headers.set('X-Companion-Desktop-User-Uuid', companionDesktopUserUuid);
   }
-  const response = await fetch('/api/documents/store', {
+  const response = await fetch('/api/documents', {
     method: 'POST',
     headers,
     body: JSON.stringify({

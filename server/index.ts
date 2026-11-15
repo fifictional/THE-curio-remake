@@ -29,6 +29,9 @@ if (process.env.DATABASE_URL) {
   // app.user_id, so Postgres RLS decides what the query can see.
   clientFactory = (userId) => createPostgresDataClient(userId);
   console.log('  data:       postgres + RLS (DATABASE_URL)');
+
+  const { startWorker } = await import('./routes/documents');
+  startWorker();
 } else {
   console.log('  data:       in-memory fake (no DATABASE_URL)');
 }

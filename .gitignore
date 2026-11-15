@@ -11,3 +11,5 @@ ui/node_modules/
 ui/.next/
 ui/amplify_outputs.json
 ui/.env*.local
+
+.local/

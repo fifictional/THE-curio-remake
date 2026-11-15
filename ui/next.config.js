@@ -13,7 +13,7 @@ const nextConfig = {
    * also how it will run in production.
    */
   async rewrites() {
-    const paths = ['/log', '/me', '/db', '/db/:path*', '/messages', '/aiChat', '/moveChat', '/rag/:path*', '/api/auth/:path*'];
+    const paths = ['/log', '/files', '/documents', '/me', '/db', '/db/:path*', '/messages', '/aiChat', '/moveChat', '/rag/:path*', '/api/auth/:path*'];
     return paths.map((path) => ({ source: path, destination: `${API_ORIGIN}${path}` }));
   },
   images: {
