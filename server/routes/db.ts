@@ -89,10 +89,29 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
     return c.json({ data: null, errors: [{ message: 'model and method are required' }] }, 400);
   }
 
+  /*
+   * v0 stubs for models the old UI reads on every page but that have no table
+   * yet. Returning a sensible empty shape keeps the shell rendering instead of
+   * throwing on `.featureFlags.length` etc.
+   */
+  const STUBS: Record<string, () => unknown> = {
+    AppSettings: () => ({
+      appSettingsUuid: 'local',
+      featureFlags: [],
+      maintenanceMessage: null,
+      memoryFeatureEnabled: false,
+    }),
+  };
+
   const def = REGISTRY[body.model];
   if (!def) {
+    const stub = STUBS[body.model];
+    if (stub) {
+      const value = stub();
+      return c.json({ data: body.method === 'list' || body.method.startsWith('list') ? [value] : value });
+    }
     // Unmigrated model: an empty result keeps old screens rendering.
-    return c.json({ data: emptyForMethod(body.method), errors: [] });
+    return c.json({ data: emptyForMethod(body.method) });
   }
 
   const table = def.table as Record<string, unknown>;
@@ -181,10 +200,10 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
               .map((r) => shape(r as Record<string, unknown>))
               .filter((r) => r && (r as Record<string, unknown>).id === identity.sub)
           : shape(data as Record<string, unknown> | undefined);
-        return c.json({ data: shaped, errors: [] });
+        return c.json({ data: shaped });
       }
       const shaped = Array.isArray(data) ? data : data;
-      return c.json({ data: shaped, errors: [] });
+      return c.json({ data: shaped });
     } catch (err) {
       return c.json({ data: null, errors: [{ message: (err as Error).message }] }, 200);
     }

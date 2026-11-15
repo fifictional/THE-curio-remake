@@ -152,6 +152,12 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
     </>
   }
 
+  // This component renders during SSR, where `window` does not exist. The old
+  // code assumed the Amplify route was never resolved on the server (it stayed
+  // 'idle' and returned the spinner early), so this was never reached.
+  const search =
+    typeof window === 'undefined' ? '' : window.location.search;
+
   if (!isUserAuthenticated && !guestRoutes.some(route => path.startsWith(route))) {
     // Redirect unauthenticated users to sign in, preserving only the path.
     // Using the full URL (path + search) here caused an exponential
@@ -160,7 +166,7 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
     const redirectUrl = encodeURIComponent(path);
     
     // Check if utm_source=fb to redirect to signup instead of signin
-    const searchParams = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(search);
     const utmSource = searchParams.get('utm_source');
     
     if (utmSource === 'fb') {
@@ -173,7 +179,7 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
 
   if (isUserAuthenticated && [...guestRoutes].some(route => path.startsWith(route))) {
     // redirect authenticated user to home or redirect URL (from signin/signup pages)
-    const searchParams = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(search);
     let redirectUrl: string | null = searchParams.get('redirect');
     
     // Prioritize localStorage (from onboarding flow) over URL query params

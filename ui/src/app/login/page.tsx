@@ -44,8 +44,8 @@ export default function LoginPage() {
       else await signUp({ email, password });
       const me = await getMe();
       if (!me) throw new Error('Sign in failed');
-      router.refresh();
-      router.replace(`/chats/44444444-4444-4444-8444-444444444444`);
+      const target = new URLSearchParams(window.location.search).get('redirect');
+      window.location.assign(target || '/chats/44444444-4444-4444-8444-444444444444');
     } catch (err) {
       setError((err as Error).message);
     } finally {

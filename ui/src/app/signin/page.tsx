@@ -35,8 +35,13 @@ export default function SignInPage() {
     try {
       if (mode === 'in') await signIn({ email, password });
       else await signUp({ email, password });
-      router.refresh();
-      router.replace(redirect);
+
+      // Full reload: every provider (session, space, chat) re-mounts with the
+      // new cookie. Client-side navigation left them holding a signed-out state
+      // and bounced straight back here.
+      const target =
+        new URLSearchParams(window.location.search).get('redirect') ?? redirect ?? '/';
+      window.location.assign(target || '/');
     } catch (err) {
       setError((err as Error).message);
     } finally {

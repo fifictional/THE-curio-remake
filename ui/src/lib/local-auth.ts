@@ -39,7 +39,9 @@ export function clearAuthCache() {
 /** Same shape Amplify returns for `fetchAuthSession()`. */
 export async function fetchAuthSession() {
   const me = await getMe();
-  if (!me) throw new Error('Not signed in');
+  // Signed out is a normal state for the session provider (it mounts on the
+  // sign-in page too), so return an empty session instead of throwing.
+  if (!me) return { tokens: undefined, userSub: undefined, identityId: undefined };
   return {
     tokens: {
       idToken: {
@@ -65,7 +67,7 @@ export async function fetchAuthSession() {
 /** Same shape Amplify returns for `fetchUserAttributes()`. */
 export async function fetchUserAttributes() {
   const me = await getMe();
-  if (!me) throw new Error('Not signed in');
+  if (!me) return { sub: '', email: '', name: '', given_name: '', family_name: '' };
   const [givenName = '', ...rest] = (me.name ?? '').split(' ');
   return {
     sub: me.sub,

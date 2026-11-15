@@ -87,6 +87,13 @@ export function createApp(opts: AppOptions = {}) {
 
   app.get('/__calls', (c) => c.json(calls));
 
+  /** Dev-only relay for browser errors from the legacy UI. */
+  app.post('/log', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    console.error('[browser]', JSON.stringify(body));
+    return c.json({ ok: true });
+  });
+
   app.post('/__reset', (c) => {
     calls.length = 0;
     return c.json({ success: true, cleared: true });
