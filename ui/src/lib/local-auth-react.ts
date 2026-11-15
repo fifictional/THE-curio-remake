@@ -5,17 +5,29 @@
  *
  * The original components read `const { user } = useAuthenticator()` and, in the
  * SAT-mini screens, `{ route, user }`. This returns the same fields from the
- * Better Auth session so those files stay untouched.
+ * Better Auth session.
+ *
+ * IMPORTANT: the returned object must be referentially stable. Several effects
+ * in the app (e.g. session-provider emitting `session:init`) depend on `user`
+ * in their dependency arrays; a fresh object each render made those effects fire
+ * on every render, which looped (analytics identify -> render -> effect ...) and
+ * froze the UI as soon as anything was clicked.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getMe, type LocalUser } from './local-auth';
+import { getMe, signOut as doSignOut, type LocalUser } from './local-auth';
 
 type AuthRoute = 'authenticated' | 'signIn' | 'idle';
 
+interface AuthUser {
+  userId: string;
+  username: string;
+  signInDetails: { loginId?: string | null };
+}
+
 interface AuthenticatorContext {
-  user: { userId: string; username: string; signInDetails: { loginId?: string | null } } | null;
+  user: AuthUser | null;
   route: AuthRoute;
   authStatus: 'authenticated' | 'unauthenticated' | 'configuring';
   signOut: () => Promise<void>;
@@ -29,14 +41,14 @@ interface AuthenticatorContext {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useAuthenticator(_selector?: (context: AuthenticatorContext) => unknown): any {
-  const [user, setUser] = useState<LocalUser | null>(null);
+  const [me, setMe] = useState<LocalUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    getMe().then((me) => {
+    getMe().then((found) => {
       if (!alive) return;
-      setUser(me);
+      setMe(found);
       setReady(true);
     });
     return () => {
@@ -44,25 +56,34 @@ export function useAuthenticator(_selector?: (context: AuthenticatorContext) => 
     };
   }, []);
 
-  const context: AuthenticatorContext = {
-    user: user
-      ? { userId: user.sub, username: user.email ?? user.sub, signInDetails: { loginId: user.email } }
-      : null,
-    // 'idle' while the session is being resolved: the shell renders a spinner
-    // for it. Without this the first paint looks unauthenticated and the shell
-    // redirects a signed-in user back to /signin.
-    route: (user ? 'authenticated' : ready ? 'signIn' : 'idle') as AuthRoute,
-    authStatus: (user
-      ? 'authenticated'
-      : ready
-        ? 'unauthenticated'
-        : 'configuring') as AuthenticatorContext['authStatus'],
-    signOut: async () => {
-      const { signOut } = await import('./local-auth');
-      await signOut();
-      setUser(null);
-    },
-  };
+  const user = useMemo<AuthUser | null>(
+    () =>
+      me
+        ? {
+            userId: me.sub,
+            username: me.email ?? me.sub,
+            signInDetails: { loginId: me.email },
+          }
+        : null,
+    [me?.sub, me?.email],
+  );
+
+  const signOut = useCallback(async () => {
+    await doSignOut();
+    setMe(null);
+  }, []);
+
+  const route: AuthRoute = user ? 'authenticated' : ready ? 'signIn' : 'idle';
+  const authStatus: AuthenticatorContext['authStatus'] = user
+    ? 'authenticated'
+    : ready
+      ? 'unauthenticated'
+      : 'configuring';
+
+  const context = useMemo<AuthenticatorContext>(
+    () => ({ user, route, authStatus, signOut }),
+    [user, route, authStatus, signOut],
+  );
 
   return context;
 }
