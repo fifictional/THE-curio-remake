@@ -19,7 +19,25 @@ import 'dotenv/config';
 
 import { ownerSql as sql } from './owner-client';
 
-const tables = ['spaces', 'documents', 'chats', 'flashcards', 'questions'] as const;
+const tables = [
+  'spaces',
+  'documents',
+  'chats',
+  'flashcards',
+  'questions',
+  'space_users',
+  'tasks',
+  'user_requests',
+  'user_action_logs',
+  'quizzes',
+  'quiz_questions',
+  'quiz_attempts',
+  'mock_exams',
+  'flashcard_decks',
+] as const;
+
+/** Tables whose ownership comes from their document, not their own column. */
+const documentOwned = ['document_summaries'] as const;
 
 async function main() {
   // A superuser bypasses RLS even with FORCE. The application must therefore
@@ -48,6 +66,30 @@ async function main() {
       with check (user_uuid = current_setting('app.user_id', true)::uuid)
     `);
     console.log(`  rls  ${table}`);
+  }
+
+  for (const table of documentOwned) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (
+        exists (
+          select 1 from documents d
+          where d.document_uuid = ${table}.document_uuid
+            and d.user_uuid = current_setting('app.user_id', true)::uuid
+        )
+      )
+      with check (
+        exists (
+          select 1 from documents d
+          where d.document_uuid = ${table}.document_uuid
+            and d.user_uuid = current_setting('app.user_id', true)::uuid
+        )
+      )
+    `);
+    console.log(`  rls  ${table} (via documents)`);
   }
 
   // messages has no user_uuid — ownership comes from its chat.

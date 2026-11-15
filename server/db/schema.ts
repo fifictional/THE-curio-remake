@@ -301,3 +301,321 @@ export const chatsRelations = relations(chats, ({ one, many }) => ({
 export const messagesRelations = relations(messages, ({ one }) => ({
   chat: one(chats, { fields: [messages.chatUuid], references: [chats.chatUuid] }),
 }));
+
+/* ========================================================================== */
+/* Ported read models (step 2 of the "make the empty screens real" pass)      */
+/* ========================================================================== */
+
+/** Who shares a folder, and at what level (0 owner, 1 editor, 2 viewer). */
+export const spaceUsers = pgTable(
+  'space_users',
+  {
+    spaceUsersUuid: uuid('space_users_uuid').primaryKey(),
+    spaceUuid: uuid('space_uuid')
+      .notNull()
+      .references(() => spaces.spaceUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    level: integer('level').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('space_users_space_idx').on(t.spaceUuid),
+    index('space_users_user_idx').on(t.userUuid),
+  ],
+);
+
+/** Pipeline job records (document processing, generation, chat). */
+export const tasks = pgTable(
+  'tasks',
+  {
+    taskUuid: uuid('task_uuid').primaryKey(),
+    documentUuid: uuid('document_uuid').references(() => documents.documentUuid, {
+      onDelete: 'set null',
+    }),
+    messageUuid: uuid('message_uuid'),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('PENDING'),
+    type: text('type').notNull(),
+    args: jsonb('args'),
+    progress: integer('progress').notNull().default(0),
+    error: text('error'),
+    result: text('result'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('tasks_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+/** One row per AI call (the rate-limit and cost ledger). */
+export const userRequests = pgTable(
+  'user_requests',
+  {
+    id: uuid('id').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    documentUuid: uuid('document_uuid').references(() => documents.documentUuid, {
+      onDelete: 'set null',
+    }),
+    model: text('model').notNull().default(''),
+    category: text('category'),
+    feature: text('feature'),
+    requestStatus: integer('request_status').notNull().default(200),
+    promptTokenCount: integer('prompt_token_count').notNull().default(0),
+    candidatesTokenCount: integer('candidates_token_count').notNull().default(0),
+    totalTokenCount: integer('total_token_count').notNull().default(0),
+    latency: integer('latency'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('user_requests_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+export const userActionLogs = pgTable(
+  'user_action_logs',
+  {
+    userActionLogUuid: uuid('user_action_log_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    actionType: text('action_type').notNull(),
+    sourceType: text('source_type'),
+    sourceUuid: uuid('source_uuid'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('user_action_logs_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+/** Arbitrary key/value attached to any entity (polymorphic). */
+export const metadata = pgTable(
+  'metadata',
+  {
+    metadataUuid: uuid('metadata_uuid').primaryKey(),
+    targetUuid: text('target_uuid').notNull(),
+    targetType: text('target_type').notNull(),
+    name: text('name').notNull(),
+    value: text('value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('metadata_target_idx').on(t.targetUuid, t.targetType)],
+);
+
+/* ------------------------------- quizzes ---------------------------------- */
+
+export const quizzes = pgTable(
+  'quizzes',
+  {
+    quizUuid: uuid('quiz_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    state: text('state').notNull().default('completed'),
+    title: text('title'),
+    description: text('description'),
+    difficulty: text('difficulty'),
+    sourceType: text('source_type'),
+    sourceUuid: uuid('source_uuid'),
+    questionCount: integer('question_count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('quizzes_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+export const quizQuestions = pgTable(
+  'quiz_questions',
+  {
+    quizQuestionUuid: uuid('quiz_question_uuid').primaryKey(),
+    quizUuid: uuid('quiz_uuid')
+      .notNull()
+      .references(() => quizzes.quizUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sourceType: text('source_type'),
+    sourceUuid: uuid('source_uuid'),
+    questionContent: text('question_content').notNull(),
+    questionReferences: jsonb('question_references'),
+    options: text('options').array().notNull(),
+    hint: text('hint'),
+    answerExplanations: text('answer_explanations').array(),
+    vote: text('vote'),
+  },
+  (t) => [index('quiz_questions_quiz_idx').on(t.quizUuid)],
+);
+
+export const quizAttempts = pgTable(
+  'quiz_attempts',
+  {
+    quizAttemptUuid: uuid('quiz_attempt_uuid').primaryKey(),
+    quizUuid: uuid('quiz_uuid')
+      .notNull()
+      .references(() => quizzes.quizUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    score: integer('score').notNull().default(0),
+    total: integer('total').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('quiz_attempts_quiz_idx').on(t.quizUuid)],
+);
+
+/* ------------------------------ mock exams -------------------------------- */
+
+export const mockExams = pgTable(
+  'mock_exams',
+  {
+    mockExamUuid: uuid('mock_exam_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, { onDelete: 'set null' }),
+    chatUuid: uuid('chat_uuid'),
+    title: text('title').notNull(),
+    examName: text('exam_name'),
+    mockExamInfo: jsonb('mock_exam_info'),
+    questions: jsonb('questions'),
+    creationStatus: text('creation_status').notNull().default('GENERATED'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('mock_exams_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+export const mockExamLogs = pgTable(
+  'mock_exam_logs',
+  {
+    mockExamLogUuid: uuid('mock_exam_log_uuid').primaryKey(),
+    mockExamUuid: uuid('mock_exam_uuid')
+      .notNull()
+      .references(() => mockExams.mockExamUuid, { onDelete: 'cascade' }),
+    questionAnswers: jsonb('question_answers'),
+    status: text('status').notNull().default('IN_PROGRESS'),
+    score: integer('score').notNull().default(0),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('mock_exam_logs_exam_idx').on(t.mockExamUuid)],
+);
+
+/* ------------------------------- commerce --------------------------------- */
+
+export const bundles = pgTable('bundles', {
+  bundleUuid: uuid('bundle_uuid').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  order: integer('order').notNull().default(0),
+  defaultSku: text('default_sku'),
+  additionalSkus: text('additional_skus').array(),
+  modules: text('modules').array(),
+  published: boolean('published').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const examModules = pgTable('exam_modules', {
+  examModuleUuid: uuid('exam_module_uuid').primaryKey(),
+  moduleName: text('module_name').notNull(),
+  questionKeys: text('question_keys').array(),
+  price: integer('price').notNull().default(0),
+  retired: boolean('retired').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const receipts = pgTable('receipts', {
+  receiptId: text('receipt_id').primaryKey(),
+  userId: uuid('user_id').notNull(),
+  provider: text('provider').notNull().default('manual'),
+  payload: text('payload'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const purchases = pgTable(
+  'purchases',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    bundleUuid: uuid('bundle_uuid'),
+    purchasedAt: timestamp('purchased_at', { withTimezone: true }).notNull().defaultNow(),
+    source: text('source'),
+    receiptId: text('receipt_id'),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('purchases_user_idx').on(t.userId)],
+);
+
+export const curioSubscriptions = pgTable(
+  'curio_subscriptions',
+  {
+    subscriptionId: uuid('subscription_id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull().default('manual'),
+    status: text('status').notNull().default('active'),
+    tier: text('tier').notNull().default('super'),
+    providerSubscriptionId: text('provider_subscription_id'),
+    providerCustomerId: text('provider_customer_id'),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('curio_subscriptions_user_idx').on(t.userId)],
+);
+
+/* ---------------------------- document detail ----------------------------- */
+
+export const documentSummaries = pgTable(
+  'document_summaries',
+  {
+    documentSummaryUuid: uuid('document_summary_uuid').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    summary: text('summary').notNull(),
+    tags: text('tags').array(),
+    keyConcepts: text('key_concepts').array(),
+    markdown: text('markdown'),
+    enrichedMarkdown: text('enriched_markdown'),
+    vote: text('vote'),
+    status: text('status').notNull().default('completed'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('document_summaries_doc_idx').on(t.documentUuid)],
+);
+
+export const flashcardDecks = pgTable(
+  'flashcard_decks',
+  {
+    flashcardDeckUuid: uuid('flashcard_deck_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    description: text('description'),
+    flashcards: jsonb('flashcards'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('flashcard_decks_user_idx').on(t.userUuid)],
+);

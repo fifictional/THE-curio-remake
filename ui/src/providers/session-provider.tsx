@@ -79,11 +79,17 @@ export function SessionProvider({
   children: React.ReactNode;
 }) {
   const [userAttributes, setUserAttributes] = useState<UserAttributes | null>(null);
-  const { userRequests } = useUserRequestsApi({ 
+  const { userRequests: rawUserRequests } = useUserRequestsApi({
     userUuid: userAttributes?.userUuid || null,
     startDate: startOfDay(new Date()).toISOString(),
     endDate: endOfDay(new Date()).toISOString(),
   });
+  // The bridge can yield sparse pages while the session is resolving; every
+  // consumer below does `request.documentUuid`, so drop nulls once here.
+  const userRequests = useMemo(
+    () => (rawUserRequests ?? []).filter(Boolean),
+    [rawUserRequests],
+  );
   const { documents } = useDocumentsByUserApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 500, subscriptions: 'all', key: 'session-provider' } });
   const { userProfile } = useUserProfileApi(userAttributes?.userUuid || null);
   const { user } = useAuthenticator();
@@ -97,7 +103,9 @@ export function SessionProvider({
   const skipUserIdCookieSync = pathname?.includes('/companion/upload') ?? false;
 
   const hasReachedDailyLimitForFreePremiumMessages = useMemo(() => {
-    return userRequests.filter((request) => request.documentUuid === null).length >= MAX_FREE_PREMIUM_MESSAGES;
+    // The bridge can hand back sparse pages while a session is resolving; a null
+    // entry used to throw here and take the whole app down.
+    return userRequests.filter((request) => request?.documentUuid === null).length >= MAX_FREE_PREMIUM_MESSAGES;
   }, [userRequests]);
   
   useEffect(() => {

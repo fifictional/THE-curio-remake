@@ -21,12 +21,29 @@ import type { Context } from 'hono';
 
 import { asUser } from '../db/scope';
 import {
+  bundles,
   chats,
+  curioSubscriptions,
+  documentSummaries,
   documents,
+  examModules,
+  flashcardDecks,
   flashcards,
   messages,
+  metadata,
+  mockExamLogs,
+  mockExams,
+  purchases,
   questions,
+  quizAttempts,
+  quizQuestions,
+  quizzes,
+  receipts,
+  spaceUsers,
   spaces,
+  tasks,
+  userActionLogs,
+  userRequests,
   users,
 } from '../db/schema';
 import type { HonoEnv } from '../types';
@@ -47,6 +64,34 @@ const REGISTRY: Record<string, ModelDef> = {
   Question: { table: questions as never, pk: 'questionUuid', timestamps: ['createdAt'] },
   /** The old UI's identity model. */
   UserProfile: { table: users as never, pk: 'id' },
+
+  SpaceUsers: { table: spaceUsers as never, pk: 'spaceUsersUuid' },
+  Task: { table: tasks as never, pk: 'taskUuid', timestamps: ['createdAt'] },
+  UserRequest: { table: userRequests as never, pk: 'id', timestamps: ['createdAt'] },
+  UserActionLog: {
+    table: userActionLogs as never,
+    pk: 'userActionLogUuid',
+    timestamps: ['createdAt'],
+  },
+  Metadata: { table: metadata as never, pk: 'metadataUuid' },
+  Quiz: { table: quizzes as never, pk: 'quizUuid', timestamps: ['createdAt'] },
+  QuizQuestion: { table: quizQuestions as never, pk: 'quizQuestionUuid' },
+  QuizAttempt: { table: quizAttempts as never, pk: 'quizAttemptUuid' },
+  MockExam: { table: mockExams as never, pk: 'mockExamUuid', timestamps: ['createdAt'] },
+  MockExamLog: { table: mockExamLogs as never, pk: 'mockExamLogUuid' },
+  Bundle: { table: bundles as never, pk: 'bundleUuid' },
+  ExamModule: { table: examModules as never, pk: 'examModuleUuid' },
+  Receipt: { table: receipts as never, pk: 'receiptId' },
+  Purchase: { table: purchases as never, pk: 'id' },
+  CurioSubscription: {
+    table: curioSubscriptions as never,
+    pk: 'subscriptionId',
+  },
+  DocumentSummary: {
+    table: documentSummaries as never,
+    pk: 'documentSummaryUuid',
+  },
+  FlashcardDeck: { table: flashcardDecks as never, pk: 'flashcardDeckUuid' },
 };
 
 interface DbRequest {
@@ -81,12 +126,16 @@ function buildWhere(
 }
 
 export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
-  const identity = c.var.identity as { sub: string } | null;
-  if (!identity) return c.json({ data: null, errors: [{ message: 'Not signed in' }] }, 401);
-
   const body = (await c.req.json().catch(() => null)) as DbRequest | null;
   if (!body || typeof body.model !== 'string' || typeof body.method !== 'string') {
     return c.json({ data: null, errors: [{ message: 'model and method are required' }] }, 400);
+  }
+
+  const identity = c.var.identity as { sub: string } | null;
+  if (!identity) {
+    // Several hooks run before the session resolves and do `response.data.length`
+    // without checking the status. Answer with the shape they expect.
+    return c.json({ data: emptyForMethod(body.method) }, 401);
   }
 
   /*
