@@ -15,7 +15,9 @@
     "db:seed": "tsx server/seed.ts",
     "db:rls": "tsx server/db/rls.ts",
     "web": "npm --prefix web run dev",
-    "qdrant:smoke": "tsx server/qdrant-smoke.ts"
+    "qdrant:smoke": "tsx server/qdrant-smoke.ts",
+    "ui:build": "npm --prefix ui run build",
+    "ui:start": "npm --prefix ui run start"
   },
   "dependencies": {
     "better-auth": "^1.7.23",

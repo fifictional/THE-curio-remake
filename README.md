@@ -75,6 +75,15 @@ users is an id mapping — no child-table rewrite.
 
 ## UI
 
+**Run the UI in production mode for realistic speed** — `next dev` compiles
+~9,400 modules per route (1–14 s on first visit):
+
+```bash
+npm run ui:build   # next build (ui)
+npm run ui:start   # next start on :3200
+```
+
+
 `web/` is **TanStack Start** (v1) with file-based routes and TanStack Query:
 
 ```
