@@ -55,6 +55,41 @@ interface ModelDef {
   timestamps?: string[];
 }
 
+/**
+ * Tiny read cache.
+ *
+ * The legacy UI issues the same list/get several times per render (19-29 calls
+ * for one page). A very short TTL collapses the duplicates without serving
+ * stale data to the user: writes on a model clear that model's keys.
+ */
+const READ_TTL_MS = Number(process.env.DB_CACHE_TTL_MS ?? 750);
+const readCache = new Map<string, { at: number; value: unknown }>();
+
+function cacheKey(userId: string, body: DbRequest): string {
+  return `${userId}|${body.model}|${body.method}|${JSON.stringify(body.args ?? {})}|${JSON.stringify(body.options ?? {})}`;
+}
+
+function cacheGet(key: string): unknown | undefined {
+  const hit = readCache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > READ_TTL_MS) {
+    readCache.delete(key);
+    return undefined;
+  }
+  return hit.value;
+}
+
+function cacheSet(key: string, value: unknown): void {
+  if (readCache.size > 500) readCache.clear();
+  readCache.set(key, { at: Date.now(), value });
+}
+
+function cacheInvalidateModel(model: string): void {
+  for (const key of readCache.keys()) {
+    if (key.includes(`|${model}|`)) readCache.delete(key);
+  }
+}
+
 const REGISTRY: Record<string, ModelDef> = {
   Chat: { table: chats as never, pk: 'chatUuid', timestamps: ['createdAt'] },
   Message: { table: messages as never, pk: 'messageUuid', timestamps: ['createdAt'] },
@@ -189,6 +224,13 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
   const limit = Math.min(Number(body.options?.limit ?? 500) || 500, 1000);
   const direction = body.options?.sortDirection === 'ASC' ? asc : desc;
 
+  const isRead = body.method === 'get' || body.method.startsWith('list');
+  const key = cacheKey(identity.sub, body);
+  if (isRead) {
+    const cached = cacheGet(key);
+    if (cached !== undefined) return c.json({ data: cached });
+  }
+
   return asUser(identity.sub, async (db) => {
     // Generic dispatcher: the table and the shape are decided at runtime, so
     // Drizzle's per-table types cannot apply here. The RLS scope still does.
@@ -246,6 +288,8 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
 
     try {
       const data = await run();
+      if (isRead) cacheSet(key, data);
+      else cacheInvalidateModel(body.model);
 
       /*
        * v0 stub: the old UI's `UserProfile` has onboarding flags and a
