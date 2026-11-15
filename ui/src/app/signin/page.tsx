@@ -39,8 +39,15 @@ export default function SignInPage() {
       // Full reload: every provider (session, space, chat) re-mounts with the
       // new cookie. Client-side navigation left them holding a signed-out state
       // and bounced straight back here.
-      const target =
+      // Sanitise: stale localStorage / nested ?redirect= values from earlier
+      // loops used to send the browser to /signin?redirect=... forever.
+      localStorage.removeItem('post_auth_redirect');
+      const raw =
         new URLSearchParams(window.location.search).get('redirect') ?? redirect ?? '/';
+      const target =
+        raw.startsWith('/signin') || raw.startsWith('/login') || raw.includes('redirect=')
+          ? '/'
+          : raw;
       window.location.assign(target || '/');
     } catch (err) {
       setError((err as Error).message);

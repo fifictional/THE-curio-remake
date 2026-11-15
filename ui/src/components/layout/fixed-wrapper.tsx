@@ -25,7 +25,7 @@ interface FixedWrapperProps {
   children: React.ReactNode;
 }
 
-const guestRoutes = ['/companion/upload', '/signin', '/signup', '/onboarding', '/satus-onboarding', '/partner', '/gifting', '/one-dollar'];
+const guestRoutes = ['/companion/upload', '/signin', '/signup', '/onboarding', '/satus-onboarding', '/partner', '/gifting', '/one-dollar', '/reset'];
 const guestOnlyRoutes = ['/satus-onboarding', '/partner', '/gifting', '/one-dollar'];
 const signedInRoutesWithNoSidebar = ['/welcome'];
 
@@ -186,7 +186,14 @@ export function FixedWrapper({ children }: FixedWrapperProps) {
     // This ensures we use the correct redirect from onboarding, not OAuth callback URLs
     const storedRedirect = localStorage.getItem('post_auth_redirect');
     if (storedRedirect) {
-      redirectUrl = storedRedirect;
+      // Drop anything that points back at an auth route or carries its own
+      // ?redirect= — those produced an exponential redirect loop.
+      const poisoned =
+        storedRedirect.startsWith('/signin') ||
+        storedRedirect.startsWith('/login') ||
+        storedRedirect.startsWith('/signup') ||
+        storedRedirect.includes('redirect=');
+      if (!poisoned) redirectUrl = storedRedirect;
       localStorage.removeItem('post_auth_redirect');
     }
     
