@@ -33,9 +33,10 @@ export const usePaginatedQuery = <T>(props: PaginatedQueryOptions<T>) => {
     queryFn: ({ pageParam }) => queryFn(pageParam || ''),
     getNextPageParam: (lastPage) => lastPage.nextToken ?? undefined,
     // Don’t aggressively refetch on focus/mount; keeps UX snappy on navigation.
-    refetchOnWindowFocus: true,
+    // `refetchOnMount: true` forced a refetch on every remount regardless of
+    // freshness, which multiplied the /db traffic on each render.
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    refetchOnMount: true,
   });
 
   // `onData` is usually an inline arrow function, so including it in the deps

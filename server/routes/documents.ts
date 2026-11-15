@@ -105,7 +105,7 @@ async function extractText(key: string): Promise<string | null> {
   }
 }
 
-const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 3000);
+const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 5000);
 
 /**
  * One pass: claim PENDING tasks, process them, write a summary, mark done.

@@ -36,6 +36,11 @@ function createQueryClient() {
         // Amplify Data errors are usually not transient; fewer retries = less
         // Sentry spam and less chance of hitting the 429 ingest limit.
         retry: 1,
+        // The remake serves data from a 2-second server-side cache, so a short
+        // client stale window removes the duplicate fetch storms (the legacy UI
+        // asks for the same lists repeatedly while rendering).
+        staleTime: 30_000,
+        refetchOnWindowFocus: false,
       },
     },
     queryCache: new QueryCache({

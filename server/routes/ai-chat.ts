@@ -43,6 +43,17 @@ export function createAiChatRoute(): AiChatRoute {
     // not an empty conversation.
     const chatRow = await client.models.Chat.get({ chatUuid: input.chatUuid });
     if (!chatRow.data || chatRow.data.userUuid !== identity.sub) {
+      // Diagnostic: tells us whether the row is missing or simply invisible to
+      // this user (RLS), and which chat the client actually asked for.
+      console.warn(
+        '[aiChat] chat not found',
+        JSON.stringify({
+          requested: input.chatUuid,
+          found: Boolean(chatRow.data),
+          owner: chatRow.data?.userUuid ?? null,
+          caller: identity.sub,
+        }),
+      );
       return c.json({ success: false, error: 'Chat not found' }, 404);
     }
 

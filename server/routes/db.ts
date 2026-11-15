@@ -62,7 +62,7 @@ interface ModelDef {
  * for one page). A very short TTL collapses the duplicates without serving
  * stale data to the user: writes on a model clear that model's keys.
  */
-const READ_TTL_MS = Number(process.env.DB_CACHE_TTL_MS ?? 750);
+const READ_TTL_MS = Number(process.env.DB_CACHE_TTL_MS ?? 2000);
 const readCache = new Map<string, { at: number; value: unknown }>();
 
 function cacheKey(userId: string, body: DbRequest): string {
