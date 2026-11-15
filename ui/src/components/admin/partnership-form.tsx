@@ -9,7 +9,7 @@ import { Upload, Image as ImageIcon, X } from "lucide-react";
 import { uploadData } from '@aws-amplify/storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { Partnership, PartnershipFormData } from "@/hooks/api/partnerships/use-partnerships.api";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 
 interface PartnershipFormProps {
   value: Partnership | null;

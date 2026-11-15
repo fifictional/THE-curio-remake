@@ -1,5 +1,5 @@
 import { useCoreContext } from "@/providers/core-provider";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 import { useEffect, useState } from "react";
 
 export function useReferenceUrlApi(referenceUrl?: string) {

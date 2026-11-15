@@ -41,3 +41,24 @@ export async function getProperties(input: { path: string }) {
   const blob = await res.blob();
   return { path: input.path, size: blob.size, contentType: blob.type };
 }
+
+/**
+ * `getUrl` replacement: locally the object is served straight from /files, so
+ * "presigning" is just URL construction.
+ */
+export async function getUrl(input: { path: string }) {
+  return {
+    url: new URL(
+      `/files?key=${encodeURIComponent(input.path)}`,
+      typeof window === 'undefined' ? 'http://localhost:3200' : window.location.origin,
+    ),
+  };
+}
+
+/** `remove` replacement: delete the object from local storage. */
+export async function remove(input: { path: string }) {
+  await fetch(`/files?key=${encodeURIComponent(input.path)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).catch(() => {});
+}

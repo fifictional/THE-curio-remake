@@ -6,7 +6,7 @@ import { ConfirmPopover } from "@/components/ui/confirm-popover";
 import { Trash2Icon, Plus, Image as ImageIcon } from "lucide-react";
 import { usePartnershipsApi, type Partnership } from "@/hooks/api/partnerships/use-partnerships.api";
 import { PartnershipForm } from "@/components/admin/partnership-form";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 
 export function PartnersList() {
   const { partnerships, isLoading, createPartnership, updatePartnership, deletePartnership } = usePartnershipsApi();

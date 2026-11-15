@@ -18,7 +18,7 @@ import { createMoveChatRoute } from './routes/move-chat';
 import { createAiChatRoute } from './routes/ai-chat';
 import { createRagRoutes } from './routes/rag';
 import { handleDbRequest } from './routes/db';
-import { downloadFile, uploadFile } from './routes/files';
+import { deleteFile, downloadFile, uploadFile } from './routes/files';
 import { createDocument, createDocumentValidate } from './routes/documents';
 import type { HonoEnv } from './types';
 
@@ -122,6 +122,7 @@ export function createApp(opts: AppOptions = {}) {
   // Local object storage + document creation (the S3 + pipeline replacement).
   app.post('/files', uploadFile);
   app.get('/files', downloadFile);
+  app.delete('/files', deleteFile);
   app.post('/documents', createDocumentValidate, createDocument);
 
   // The bridge: generic data endpoint for the original (legacy) UI.

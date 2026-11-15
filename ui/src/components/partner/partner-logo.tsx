@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePartnershipByCode } from "@/hooks/api/partnerships/use-partnerships.api";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 
 interface PartnerLogoProps {
   partnerCode?: string;

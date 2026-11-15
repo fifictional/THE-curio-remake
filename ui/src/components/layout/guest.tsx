@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { confirmSignIn, ConfirmSignInInput, confirmSignUp, ConfirmSignUpInput, signIn, SignInInput, signUp, SignUpInput } from "aws-amplify/auth";
 import { usePartnershipByCode } from "@/hooks/api/partnerships/use-partnerships.api";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 import { PartnerImageSection } from "@/components/partner/partner-image-section";
 import { useCommonContext } from "@/providers/common-provider";
 import { TwoPanelLayout } from "@/design-system/two-panel-layout";

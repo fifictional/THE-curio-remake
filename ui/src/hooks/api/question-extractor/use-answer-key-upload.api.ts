@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useAmplifyApiClient } from '@/providers/amplify-provider';
 import { useSessionContext } from '@/providers/session-provider';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData } from "@/lib/local-storage";
 import { QuestionExtractJob } from './use-question-extractor.api';
 import { v4 as uuidv4 } from 'uuid';
 

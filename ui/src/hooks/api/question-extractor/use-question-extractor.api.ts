@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAmplifyApiClient } from '@/providers/amplify-provider';
 import { useSessionContext } from '@/providers/session-provider';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData } from "@/lib/local-storage";
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ExtractedQuestion {

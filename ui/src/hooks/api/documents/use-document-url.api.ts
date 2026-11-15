@@ -1,4 +1,4 @@
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 

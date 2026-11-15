@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ImageIcon, AlertCircle, CheckCircle, FileIcon, Sparkles } from 'lucide-react';
 import { ExtractedQuestion } from '@/hooks/api/question-extractor';
 import { QuestionReferenceImage } from '@/components/ui/question-reference-image';
-import { remove } from 'aws-amplify/storage';
+import { remove } from "@/lib/local-storage";
 
 interface GeneratedReferencesProps {
   question: ExtractedQuestion;

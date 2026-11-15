@@ -1,4 +1,4 @@
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 import { useEffect, useState, useRef } from "react";
 
 // Cache for storing presigned URLs

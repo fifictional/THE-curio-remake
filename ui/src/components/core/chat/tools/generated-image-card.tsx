@@ -1,6 +1,6 @@
 'use client';
 
-import { getUrl } from "aws-amplify/storage";
+import { getUrl } from "@/lib/local-storage";
 import { useEffect, useState } from "react";
 import { LoadingSpinnerWithType } from '@/components/ui/loading-spinner-with-type';
 import { ImageIcon } from "lucide-react";
