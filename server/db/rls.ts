@@ -39,6 +39,14 @@ const tables = [
 /** Tables whose ownership comes from their document, not their own column. */
 const documentOwned = ['document_summaries'] as const;
 
+/** Tables that key ownership on `user_id` rather than `user_uuid`. */
+const userIdTables = ['purchases', 'curio_subscriptions', 'receipts'] as const;
+
+/** Tables that hang off another row. */
+const viaParent: Array<{ table: string; parent: string; fk: string }> = [
+  { table: 'mock_exam_logs', parent: 'mock_exams', fk: 'mock_exam_uuid' },
+];
+
 async function main() {
   // A superuser bypasses RLS even with FORCE. The application must therefore
   // connect as a plain role that owns nothing.
@@ -66,6 +74,42 @@ async function main() {
       with check (user_uuid = current_setting('app.user_id', true)::uuid)
     `);
     console.log(`  rls  ${table}`);
+  }
+
+  for (const table of userIdTables) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (user_id = current_setting('app.user_id', true)::uuid)
+      with check (user_id = current_setting('app.user_id', true)::uuid)
+    `);
+    console.log(`  rls  ${table} (user_id)`);
+  }
+
+  for (const { table, parent, fk } of viaParent) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (
+        exists (
+          select 1 from ${parent} p
+          where p.${parent === 'mock_exams' ? 'mock_exam_uuid' : fk} = ${table}.${fk}
+            and p.user_uuid = current_setting('app.user_id', true)::uuid
+        )
+      )
+      with check (
+        exists (
+          select 1 from ${parent} p
+          where p.${parent === 'mock_exams' ? 'mock_exam_uuid' : fk} = ${table}.${fk}
+            and p.user_uuid = current_setting('app.user_id', true)::uuid
+        )
+      )
+    `);
+    console.log(`  rls  ${table} (via ${parent})`);
   }
 
   for (const table of documentOwned) {
