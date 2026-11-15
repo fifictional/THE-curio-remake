@@ -48,3 +48,6 @@ amplifyconfiguration*
 amplify/functions/convert-office-to-pdf/build/*
 *storybook.log
 storybook-static
+
+# generated: copied from node_modules by postinstall
+public/mathjax/

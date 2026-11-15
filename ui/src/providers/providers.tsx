@@ -90,16 +90,21 @@ const MathJaxConfig = {
   renderMode: 'post'
 }
 
-const MATHJAX_DISABLED = process.env.NEXT_PUBLIC_DISABLE_MATHJAX === '1';
-
 /**
- * The remake runs offline: MathJax loads from a CDN and, when it cannot, every
- * message logs "Typesetting failed". Disable the context locally (set
- * NEXT_PUBLIC_DISABLE_MATHJAX=1); set it to 0 to restore real typesetting.
+ * MathJax is served from public/mathjax (copied from node_modules by
+ * `npm run mathjax:copy`, wired into postinstall) instead of the CDN: the CDN is
+ * unreachable on some networks, which made every message log
+ * "Typesetting failed". Set NEXT_PUBLIC_DISABLE_MATHJAX=1 to skip it entirely,
+ * but note the MathJax components in message rendering require the context.
  */
+const MATHJAX_SRC = process.env.NEXT_PUBLIC_MATHJAX_SRC ?? '/mathjax/es5/tex-mml-chtml.js';
+
 function WithMathJax({ children }: { children: React.ReactNode }) {
-  if (MATHJAX_DISABLED) return <>{children}</>;
-  return <MathJaxContext config={MathJaxConfig}>{children}</MathJaxContext>;
+  return (
+    <MathJaxContext version={3} src={MATHJAX_SRC} config={MathJaxConfig}>
+      {children}
+    </MathJaxContext>
+  );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
