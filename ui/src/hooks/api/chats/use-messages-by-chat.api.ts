@@ -91,7 +91,7 @@ export function useMessagesByChatApi({
     setMessages(mapped);
   }, []);
 
-  const { isLoading, loadNextPage, hasNextPage } = usePaginatedQuery<RequestType>({
+  const { isLoading, loadNextPage, hasNextPage, refetch } = usePaginatedQuery<RequestType>({
     queryKey: ['messages', chatUuid!, options?.key || 'default'],
     queryFn: (nextPageToken) => getMessages(chatUuid!, options?.perPage || 10, nextPageToken),
     options: {
@@ -147,6 +147,10 @@ export function useMessagesByChatApi({
     if (!response.success) {
       throw new Error(response.error || 'Failed to ask AI');
     }
+
+    // The remake has no AppSync subscriptions, so nothing pushes the assistant
+    // reply into the list. Re-read the messages instead.
+    await refetch();
 
     sendActivity({
       email: userAttributes?.email ?? '',

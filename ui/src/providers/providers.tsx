@@ -90,13 +90,25 @@ const MathJaxConfig = {
   renderMode: 'post'
 }
 
+const MATHJAX_DISABLED = process.env.NEXT_PUBLIC_DISABLE_MATHJAX === '1';
+
+/**
+ * The remake runs offline: MathJax loads from a CDN and, when it cannot, every
+ * message logs "Typesetting failed". Disable the context locally (set
+ * NEXT_PUBLIC_DISABLE_MATHJAX=1); set it to 0 to restore real typesetting.
+ */
+function WithMathJax({ children }: { children: React.ReactNode }) {
+  if (MATHJAX_DISABLED) return <>{children}</>;
+  return <MathJaxContext config={MathJaxConfig}>{children}</MathJaxContext>;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => createQueryClient());
 
   return (
     <Theme asChild>
       <AnalyticsProvider>
-        <MathJaxContext config={MathJaxConfig}>
+        <WithMathJax>
           <QueryClientProvider client={queryClient}>
             <Authenticator.Provider>
               <AmplifyProvider>
@@ -116,7 +128,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               </AmplifyProvider>
             </Authenticator.Provider>
           </QueryClientProvider>
-        </MathJaxContext>
+        </WithMathJax>
       </AnalyticsProvider>
     </Theme>
   );
