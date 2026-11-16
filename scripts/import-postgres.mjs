@@ -18,7 +18,7 @@
 
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { access, readdir, readFile } from 'node:fs/promises';
+import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import 'dotenv/config';
@@ -70,6 +70,15 @@ function repairPayload(payload) {
 }
 
 /** `"0#2026-01-27T10:15:16.629Z"` → "0#2026-01-27T10:15:16.629Z" (kept verbatim). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Some dev rows carry garbage in optional foreign keys ("undefined",
+ * "probe-verify-1"). For a nullable FK, nulling it preserves the row; casting it
+ * would quarantine a perfectly good document because of one bad column.
+ */
+const uuidOrNull = (v) => (typeof v === 'string' && UUID_RE.test(v) ? v : null);
+
 const composite = (v) => (typeof v === 'string' && v ? v : null);
 
 /**
@@ -104,7 +113,10 @@ const SPECS = [
       // The primary-key property in the schema is `id`, but the physical column
       // is user_uuid (kept so legacy ids survive). Emit the column name.
       userUuid: r.userUuid,
-      email: r.userEmail ?? r.email,
+      // Four dev profiles have no email at all. Keep the row (it still owns
+      // documents and chats) and give it a placeholder that cannot be logged in
+      // with, rather than dropping the user and orphaning everything.
+      email: r.userEmail ?? r.email ?? `missing+${r.userUuid}@import.invalid`,
       name: [r.firstName, r.lastName].filter(Boolean).join(' ') || null,
       firstName: r.firstName ?? null,
       lastName: r.lastName ?? null,
@@ -166,8 +178,8 @@ const SPECS = [
     map: (r) => ({
       documentUuid: r.documentUuid,
       userUuid: r.userUuid,
-      spaceUuid: r.spaceUuid ?? null,
-      youtubeVideoUuid: r.youtubeVideoUuid ?? null,
+      spaceUuid: uuidOrNull(r.spaceUuid),
+      youtubeVideoUuid: uuidOrNull(r.youtubeVideoUuid),
       key: r.key ?? '',
       originalKey: r.originalKey ?? null,
       fileName: r.fileName ?? '',
@@ -221,8 +233,8 @@ const SPECS = [
     map: (r) => ({
       chatUuid: r.chatUuid,
       userUuid: r.userUuid,
-      spaceUuid: r.spaceUuid ?? null,
-      documentUuid: r.documentUuid ?? null,
+      spaceUuid: uuidOrNull(r.spaceUuid),
+      documentUuid: uuidOrNull(r.documentUuid),
       name: r.name ?? null,
       hideInRecent: Boolean(r.hideInRecent),
       createdAt: ts(r.createdAt),
@@ -287,9 +299,9 @@ const SPECS = [
     map: (r) => ({
       flashcardUuid: r.flashcardUuid,
       userUuid: r.userUuid,
-      spaceUuid: r.spaceUuid ?? null,
-      chatUuid: r.chatUuid ?? null,
-      documentUuid: r.documentUuid ?? null,
+      spaceUuid: uuidOrNull(r.spaceUuid),
+      chatUuid: uuidOrNull(r.chatUuid),
+      documentUuid: uuidOrNull(r.documentUuid),
       title: r.title ?? '',
       content: r.content ?? '',
       references: r.references ?? null,
@@ -305,9 +317,9 @@ const SPECS = [
     map: (r) => ({
       questionUuid: r.questionUuid,
       userUuid: r.userUuid,
-      spaceUuid: r.spaceUuid ?? null,
-      chatUuid: r.chatUuid ?? null,
-      documentUuid: r.documentUuid ?? null,
+      spaceUuid: uuidOrNull(r.spaceUuid),
+      chatUuid: uuidOrNull(r.chatUuid),
+      documentUuid: uuidOrNull(r.documentUuid),
       questionContent: r.questionContent ?? '',
       questionReferences: r.questionReferences ?? null,
       options: arr(r.options),
@@ -331,7 +343,7 @@ const SPECS = [
       description: r.description ?? null,
       difficulty: r.difficulty ?? null,
       sourceType: r.sourceType ?? null,
-      sourceUuid: r.sourceUuid ?? null,
+      sourceUuid: uuidOrNull(r.sourceUuid),
       questionCount: num(r.questionCount) ?? 0,
       lastScore: num(r.lastScore),
       lastTotal: num(r.lastTotal),
@@ -348,7 +360,7 @@ const SPECS = [
       quizUuid: r.quizUuid,
       userUuid: r.userUuid,
       sourceType: r.sourceType ?? null,
-      sourceUuid: r.sourceUuid ?? null,
+      sourceUuid: uuidOrNull(r.sourceUuid),
       questionContent: r.questionContent ?? '',
       questionReferences: r.questionReferences ?? null,
       options: arr(r.options),
@@ -378,8 +390,8 @@ const SPECS = [
     map: (r) => ({
       mockExamUuid: r.mockExamUuid,
       userUuid: r.userUuid,
-      spaceUuid: r.spaceUuid ?? null,
-      chatUuid: r.chatUuid ?? null,
+      spaceUuid: uuidOrNull(r.spaceUuid),
+      chatUuid: uuidOrNull(r.chatUuid),
       title: r.title ?? '',
       examName: r.examName ?? null,
       mockExamInfo: r.mockExamInfo ?? null,
@@ -411,8 +423,8 @@ const SPECS = [
     pk: 'taskUuid',
     map: (r) => ({
       taskUuid: r.taskUuid,
-      documentUuid: r.documentUuid ?? null,
-      messageUuid: r.messageUuid ?? null,
+      documentUuid: uuidOrNull(r.documentUuid),
+      messageUuid: uuidOrNull(r.messageUuid),
       userUuid: r.userUuid,
       status: r.status ?? 'PENDING',
       type: r.type ?? 'DOCUMENT_PROCESSING',
@@ -432,7 +444,7 @@ const SPECS = [
     map: (r) => ({
       id: uuidFrom('user_request', r.userUuid, r.createdAt ?? ''),
       userUuid: r.userUuid,
-      documentUuid: r.documentUuid ?? null,
+      documentUuid: uuidOrNull(r.documentUuid),
       model: r.model ?? '',
       category: r.category ?? null,
       feature: r.feature ?? null,
@@ -454,7 +466,7 @@ const SPECS = [
       userUuid: r.userUuid,
       actionType: r.actionType ?? 'unknown',
       sourceType: r.sourceType ?? null,
-      sourceUuid: r.sourceUuid ?? null,
+      sourceUuid: uuidOrNull(r.sourceUuid),
       createdAt: ts(r.createdAt),
     }),
   },
@@ -486,7 +498,7 @@ const SPECS = [
       payload: repairPayload(r.payload),
       topic: r.topic ?? '',
       subject: r.subject ?? null,
-      documentUuid: r.documentUuid ?? null,
+      documentUuid: uuidOrNull(r.documentUuid),
       confidence: num(r.confidence) ?? 0,
       frequency: num(r.frequency) ?? 1,
       attemptScores: Array.isArray(r.attemptScores) ? r.attemptScores : null,
@@ -512,9 +524,9 @@ const SPECS = [
       scopeId: r.scopeId,
       proposedBlock: repairPayload(r.proposedBlock),
       decision: r.decision ?? 'rejected',
-      mergedIntoUuid: r.mergedIntoUuid ?? null,
-      messageUuid: r.messageUuid ?? null,
-      chatUuid: r.chatUuid ?? null,
+      mergedIntoUuid: uuidOrNull(r.mergedIntoUuid),
+      messageUuid: uuidOrNull(r.messageUuid),
+      chatUuid: uuidOrNull(r.chatUuid),
       createdAt: ts(r.createdAt),
       updatedAt: ts(r.updatedAt),
     }),
@@ -653,7 +665,7 @@ function buildInsert(table, keys) {
           on conflict do nothing`;
 }
 
-async function insertRows(spec, rows) {
+async function insertRows(db, spec, rows) {
   const CHUNK = 500;
   let inserted = 0;
   let quarantined = 0;
@@ -662,20 +674,20 @@ async function insertRows(spec, rows) {
     const batch = rows.slice(i, i + CHUNK).map((r) => snakeRow(spec.map(r)));
 
     try {
-      const result = await sql.unsafe(buildInsert(spec.table, Object.keys(batch[0])), [batch]);
+      const result = await db.unsafe(buildInsert(spec.table, Object.keys(batch[0])), [batch]);
       // `count` is the affected-row count, so a second run honestly reports 0.
       inserted += result.count ?? 0;
     } catch (batchError) {
       // One bad row must not block the table: retry individually.
       for (const row of batch) {
         try {
-          const one = await sql.unsafe(buildInsert(spec.table, Object.keys(row)), [[row]]);
+          const one = await db.unsafe(buildInsert(spec.table, Object.keys(row)), [[row]]);
           inserted += one.count ?? 0;
         } catch (rowError) {
           quarantined += 1;
-          await sql`
+          await db`
             insert into import_quarantine (source_table, reason, raw)
-            values (${spec.model}, ${String(rowError.message).slice(0, 500)}, ${sql.json(row)})
+            values (${spec.model}, ${String(rowError.message).slice(0, 500)}, ${db.json(row)})
           `.catch(() => {});
         }
       }
@@ -686,6 +698,54 @@ async function insertRows(spec, rows) {
   }
 
   return { inserted, quarantined };
+}
+
+/** Every FK we care about, as child table + column + parent table + column. */
+const FK_CHECKS = [
+  ['spaces', 'user_uuid', 'users', 'user_uuid'],
+  ['space_users', 'space_uuid', 'spaces', 'space_uuid'],
+  ['space_users', 'user_uuid', 'users', 'user_uuid'],
+  ['documents', 'user_uuid', 'users', 'user_uuid'],
+  ['documents', 'space_uuid', 'spaces', 'space_uuid'],
+  ['chats', 'user_uuid', 'users', 'user_uuid'],
+  ['chats', 'space_uuid', 'spaces', 'space_uuid'],
+  ['chats', 'document_uuid', 'documents', 'document_uuid'],
+  ['messages', 'chat_uuid', 'chats', 'chat_uuid'],
+  ['chat_citations', 'chat_uuid', 'chats', 'chat_uuid'],
+  ['chat_citations', 'message_uuid', 'messages', 'message_uuid'],
+  ['document_summaries', 'document_uuid', 'documents', 'document_uuid'],
+  ['document_vision_outputs', 'document_uuid', 'documents', 'document_uuid'],
+  ['flashcards', 'user_uuid', 'users', 'user_uuid'],
+  ['flashcards', 'chat_uuid', 'chats', 'chat_uuid'],
+  ['flashcards', 'document_uuid', 'documents', 'document_uuid'],
+  ['questions', 'chat_uuid', 'chats', 'chat_uuid'],
+  ['questions', 'document_uuid', 'documents', 'document_uuid'],
+  ['quizzes', 'user_uuid', 'users', 'user_uuid'],
+  ['quiz_questions', 'quiz_uuid', 'quizzes', 'quiz_uuid'],
+  ['quiz_attempts', 'quiz_uuid', 'quizzes', 'quiz_uuid'],
+  ['mock_exams', 'user_uuid', 'users', 'user_uuid'],
+  ['mock_exam_logs', 'mock_exam_uuid', 'mock_exams', 'mock_exam_uuid'],
+  ['tasks', 'user_uuid', 'users', 'user_uuid'],
+  ['user_requests', 'user_uuid', 'users', 'user_uuid'],
+  ['user_action_logs', 'user_uuid', 'users', 'user_uuid'],
+  ['flashcard_decks', 'user_uuid', 'users', 'user_uuid'],
+  ['memory_blocks', 'owner_uuid', 'users', 'user_uuid'],
+  ['memory_candidates', 'owner_uuid', 'users', 'user_uuid'],
+  ['purchases', 'user_id', 'users', 'user_uuid'],
+  ['curio_subscriptions', 'user_id', 'users', 'user_uuid'],
+];
+
+async function reportOrphans(db) {
+  const out = [];
+  for (const [child, childCol, parent, parentCol] of FK_CHECKS) {
+    const [row] = await db.unsafe(
+      `select count(*)::int as n from "${child}" c
+       where c."${childCol}" is not null
+         and not exists (select 1 from "${parent}" p where p."${parentCol}" = c."${childCol}")`,
+    );
+    if (row.n > 0) out.push({ child, column: childCol, parent, count: row.n });
+  }
+  return out.sort((a, b) => b.count - a.count);
 }
 
 async function main() {
@@ -710,6 +770,17 @@ async function main() {
 
   const results = [];
 
+  /**
+   * Orphans are normal in this dataset: rows whose parent was deleted are still
+   * in DynamoDB because nothing enforced referential integrity. Dropping them
+   * would silently lose data, so FKs are disabled for the load
+   * (`session_replication_role = replica`) and the orphans are reported instead.
+   * Pass --strict to enforce them and quarantine the offenders.
+   */
+  const strict = args.has('--strict');
+  const db = await sql.reserve();
+  if (!strict) await db.unsafe('set session_replication_role = replica');
+
   for (const spec of SPECS) {
     if (!available.has(`${spec.model}.ndjson`)) {
       results.push({ model: spec.model, table: spec.table, status: 'no export' });
@@ -723,10 +794,13 @@ async function main() {
     }
 
     process.stdout.write(`  ${spec.model} → ${spec.table} (${source.length})… `);
-    const { inserted, quarantined } = await insertRows(spec, source);
-    const [countRow] = await sql.unsafe(`select count(*)::int as n from ${spec.table}`);
+    const { inserted, quarantined } = await insertRows(db, spec, source);
+    const [countRow] = await db.unsafe(`select count(*)::int as n from ${spec.table}`);
     console.log(`${inserted} inserted, ${countRow.n} in table${quarantined ? `, ${quarantined} quarantined` : ''}`);
 
+    // Rows that vanished without an error are duplicates suppressed by
+    // `on conflict do nothing` — surface them instead of losing them quietly.
+    const skipped = Math.max(0, source.length - inserted - quarantined);
     results.push({
       model: spec.model,
       table: spec.table,
@@ -734,9 +808,23 @@ async function main() {
       inserted,
       inTable: countRow.n,
       quarantined,
-      status: quarantined > 0 ? 'partial' : 'ok',
+      skipped,
+      status: quarantined > 0 || skipped > 0 ? 'partial' : 'ok',
     });
   }
+
+  if (!strict) {
+    await db.unsafe('set session_replication_role = origin');
+    const orphans = await reportOrphans(db);
+    console.log('\norphans (rows whose parent is missing):');
+    for (const row of orphans) console.log(`  ${row.child}: ${row.count} → missing ${row.parent}`);
+    await writeFile(
+      'docs/migration/orphans.json',
+      JSON.stringify({ generatedAt: new Date().toISOString(), orphans }, null, 2),
+    );
+    console.log('  details: docs/migration/orphans.json');
+  }
+  db.release();
 
   const [quarantineCount] = await sql.unsafe('select count(*)::int as n from import_quarantine');
 
@@ -747,8 +835,14 @@ async function main() {
   }
   console.log(`quarantined rows: ${quarantineCount.n}`);
 
-  const bad = results.filter((r) => r.status === 'partial');
-  if (bad.length) console.log(`tables with quarantined rows: ${bad.map((r) => r.model).join(', ')}`);
+  const withQuarantine = results.filter((r) => r.quarantined > 0);
+  const withSkipped = results.filter((r) => (r.skipped ?? 0) > 0);
+  if (withQuarantine.length) {
+    console.log(`quarantined in: ${withQuarantine.map((r) => `${r.model} (${r.quarantined})`).join(', ')}`);
+  }
+  if (withSkipped.length) {
+    console.log(`silently skipped as duplicates: ${withSkipped.map((r) => `${r.model} (${r.skipped})`).join(', ')}`);
+  }
 
   await sql.end();
 }

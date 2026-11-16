@@ -69,6 +69,42 @@ corrupted `MemoryBlock.payload` and a message with no `userUuid`), imports it in
 the local database with `--truncate`, and reports quarantine counts. Use it to
 regression-test the importer after any transform change — no credentials needed.
 
+## 2c. Orphans: preserved, reported, never dropped
+
+DynamoDB had no foreign keys, so dev contains rows whose parent was deleted —
+1,993 of them on the first real run. Dropping them would silently lose data, so
+the loader runs with `session_replication_role = replica` (foreign keys off) and
+then reports what is orphaned:
+
+```
+orphans (rows whose parent is missing):
+  messages: 243 → missing chats
+  flashcards: 198 → missing users
+  ...
+  details: docs/migration/orphans.json
+```
+
+`--strict` enforces the foreign keys instead and quarantines the offenders.
+
+Rows that cannot be coerced at all are quarantined with a reason:
+`Message` rows whose `chatUuid` is `"probe-verify-1"` (someone's test data, not a
+uuid) — 2 rows. Nullable foreign keys holding `"undefined"` are nulled instead of
+rejecting the whole row.
+
+## 2d. Logging in as an imported user
+
+Cognito hashes cannot be verified by Better Auth, so imported users cannot log in
+as-is. For local work, attach a credential to **one** existing user:
+
+```bash
+npm run migrate:adopt -- --list
+npm run migrate:adopt -- --email test@curio.to --password localpass123
+```
+
+Then sign in at `http://localhost:3300/signin` and the app shows the migrated
+documents, chats and flashcards. This is a local convenience, **not** the
+production password strategy.
+
 ## 3. Verify
 
 ```sql
