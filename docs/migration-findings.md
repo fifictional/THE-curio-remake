@@ -137,6 +137,11 @@ keys on `UserRequest`/`Flashcard`/`Question`/`Purchase`, and the plain
   sorting numerically, then `JSON.parse` it. Rows that fail stay quarantined, not dropped.
 - **`MockExam.questions[].answer` contains out-of-range values** (e.g. `-15` where options
   are 4). Treat as unverified data: keep the row, flag it, don't crash the loader.
+- **`Document.originalKey` often points at an object that does not exist.** 57 of the 139
+  non-null `originalKey` values in dev name `…/uploadedFile.pdf` (or `.docx`/`.pptx`/`.jpg`)
+  while the bucket holds `…/file.pdf`. Something renamed the object on upload without
+  updating the row. `Document.key` is intact for those rows, so the file is still readable —
+  it is the *pristine original* that is missing. Report it; do not invent a fallback path.
 
 ### Confirmed shapes
 - **Timestamps** are ISO-8601 strings, some with microseconds (`2026-11-16T15:32:24.021079Z`).

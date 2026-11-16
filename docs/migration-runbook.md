@@ -105,6 +105,35 @@ Then sign in at `http://localhost:3300/signin` and the app shows the migrated
 documents, chats and flashcards. This is a local convenience, **not** the
 production password strategy.
 
+## 2e. Storage objects (S3 → `.local/files`)
+
+The database points at S3 keys; the server serves objects from disk. Without
+this step every migrated document 404s when opened.
+
+```bash
+# what would move?
+npm run migrate:objects -- --bucket <dev-bucket> --dry-run
+
+# do it
+npm run migrate:objects -- --bucket <dev-bucket>
+```
+
+- **Read-only on S3** — it lists and downloads, never writes, and refuses a
+  bucket whose name looks like release unless `--allow-release` is passed.
+- Copies only the prefixes the rows reference (`student-documents/`,
+  `yt-transcripts/`); `exam-papers/`, `generated-images/`, `exports/` belong to
+  features that are not modelled yet and are left alone.
+- Keys match the disk layout, so there is no rewriting: `s3://b/<key>` becomes
+  `.local/files/<key>`.
+- Within a prefix the copy is one `aws s3 cp --recursive`; unreferenced objects
+  come along and are *counted* in the report so they can be pruned.
+- Verifies every referenced key exists on disk afterwards, and writes
+  `docs/migration/objects.json`.
+
+Dev result (2026-11-16): 356 referenced keys → 299 copied (204 MB), 57 referenced
+but **absent from the bucket** (all `documents.original_key`), 1,387 objects in
+the prefixes that nothing references.
+
 ## 3. Verify
 
 ```sql
