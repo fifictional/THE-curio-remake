@@ -19,7 +19,7 @@ import { createApp } from './app';
 import type { HonoDataClient } from './data-client';
 import { ownerDb } from './db/owner-client';
 import { asUser } from './db/scope';
-import { chats, spaces, users } from './db/schema';
+import { chats, extractedQuestions, satMiniExamLogs, spaces, users } from './db/schema';
 import { createPostgresDataClient } from './postgres-data';
 
 /**
@@ -173,6 +173,74 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
 
     const all = await app.request(`/messages?chat=${chatUuid}`, { headers: as(userA.cookie) });
     expect(((await all.json()) as { messages: unknown[] }).messages).toHaveLength(3);
+  });
+
+  it('serves the newly modelled tables through the bridge, RLS intact', async () => {
+    const logUuid = crypto.randomUUID();
+    const sharedQuestionUuid = `shared-${stamp}_m1_q1`;
+
+    await asUser(userA.userId, async (db) => {
+      await db.insert(satMiniExamLogs).values({
+        satMiniExamLogUuid: logUuid,
+        userUuid: userA.userId,
+        modules: [],
+        predictedSatScore: 1200,
+      });
+    });
+    // The question bank is shared content with no owner column.
+    await ownerDb.insert(extractedQuestions).values({
+      extractedQuestionUuid: sharedQuestionUuid,
+      moduleNumber: 1,
+      questionNumber: 1,
+      questionContent: 'shared question',
+      questionOptions: [],
+      exam: 'SAT',
+      module: 'Math',
+    });
+
+    const bridge = (cookie: string, model: string, method: string, args?: object) =>
+      app.request('/db', {
+        method: 'POST',
+        headers: as(cookie),
+        body: JSON.stringify({ model, method, args }),
+      });
+
+    const own = (await (await bridge(userA.cookie, 'SATMiniExamLog', 'list')).json()) as {
+      data: Array<{ satMiniExamLogUuid: string }>;
+    };
+    expect(own.data.map((r) => r.satMiniExamLogUuid)).toContain(logUuid);
+
+    const other = (await (await bridge(userB.cookie, 'SATMiniExamLog', 'list')).json()) as {
+      data: unknown[];
+    };
+    expect(other.data).toHaveLength(0);
+
+    // Readable by everyone…
+    for (const cookie of [userA.cookie, userB.cookie]) {
+      const seen = (await (await bridge(cookie, 'ExtractedQuestion', 'list')).json()) as {
+        data: Array<{ extractedQuestionUuid: string }>;
+      };
+      expect(seen.data.map((r) => r.extractedQuestionUuid)).toContain(sharedQuestionUuid);
+    }
+
+    // …but writable only through the job that produced it, and this row has none.
+    const attempted = (await (
+      await bridge(userB.cookie, 'ExtractedQuestion', 'update', {
+        extractedQuestionUuid: sharedQuestionUuid,
+        verified: true,
+      })
+    ).json()) as { data?: unknown };
+    expect(attempted.data ?? null).toBeNull();
+
+    const [row] = await ownerDb
+      .select()
+      .from(extractedQuestions)
+      .where(eq(extractedQuestions.extractedQuestionUuid, sharedQuestionUuid));
+    expect(row.verified).toBeNull();
+
+    await ownerDb
+      .delete(extractedQuestions)
+      .where(eq(extractedQuestions.extractedQuestionUuid, sharedQuestionUuid));
   });
 
   afterAll(async () => {

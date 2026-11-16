@@ -28,10 +28,16 @@ service containers.
 
 ## State
 
-- `server/` — Hono API on plain Node. Real routes ported from the old repo,
-  database hidden behind `server/data-client.ts`, fake data for now.
-- `docs/adr/` — 0001 data layer, 0002 data model + migration, 0003 ERD.
-- Postgres schema + Better Auth: next.
+- `server/` — Hono API on plain Node, real routes ported from the old repo.
+- Postgres: **all 44 DynamoDB models have a table**, RLS on 37 of them.
+- Auth: Better Auth, session cookie; imported Cognito users attach a local
+  password with `npm run migrate:adopt`.
+- Dev data is migrated: 13,673 rows across 29 non-empty tables, 299 storage
+  objects. Production is still blocked on the decisions in
+  `docs/migration-runbook.md` §5.
+- `ui/` is the original frontend (strangler); `web/` is the TanStack Start
+  replacement, chat screen only.
+- `docs/adr/` — 0001 data layer, 0002 data model + migration, 0003 ERD, 0004 strangler UI.
 
 ## Decisions
 

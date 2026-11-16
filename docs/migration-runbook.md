@@ -153,17 +153,41 @@ left join messages m on m.chat_uuid = c.chat_uuid
 group by 1 order by 3 desc limit 5;
 ```
 
-## 4. Tables deliberately not imported yet
+## 4. Every model has a table
 
-No Postgres table exists for these, so they are reported as "not modelled yet" and skipped
-rather than silently dropped:
+All 44 DynamoDB models in `scripts/export-dynamo.mjs` now have a `pgTable` and a
+`SPECS` entry, so the importer no longer prints "not modelled yet" and no source
+row is skipped for lack of a destination.
 
-`DocumentSection`, `SATMiniExamLog`, `FlashcardGame`, `Partnership`, `FutureUser`,
-`BatchProcess`, `DatalabRequest`, `ExamPaper`, `ExamPaperQuestion`, `QuestionExtractJob`,
-`QuestionGenerationJob`, `ExtractedQuestion`, `MockDocument`, `AppSettings`,
-`UserLearningProfileHistory`.
+Five of the new tables are **empty in dev**, so their shapes come from
+`amplify/data/resource.ts` in the old repo rather than from rows:
+`DocumentSection`, `SATMiniExamLog`, `FlashcardGame`, `QuestionGenerationJob`,
+`UserLearningProfileHistory`. A production run will be the first real test of those.
 
-Add a `pgTable` + a `SPECS` entry for each before a production run needs them.
+Three shape findings worth knowing:
+
+- `ExtractedQuestion.extractedQuestionUuid` is **text, not uuid** — real ids look like
+  `<uuid>_m3_q4`. A uuid column would have quarantined all 120 dev rows.
+- `DatalabRequest.taskToken` is a Step Functions token (an expired secret). The column
+  exists for shape fidelity; the importer writes `null`.
+- `moduleNumber#questionNumber` (an Amplify composite sort key) is stored verbatim in
+  `extracted_questions.module_number_question_number`, same as `level#createdAt`.
+
+Access for the new tables is decided in `server/db/rls.ts`, not by the routes:
+
+| Treatment | Tables |
+|---|---|
+| `user_uuid` policy | sat_mini_exam_logs, flashcard_games, datalab_requests, exam_papers, question_extract_jobs, question_generation_jobs, user_learning_profile_history |
+| via `documents` | document_sections |
+| via `exam_papers` | exam_paper_questions |
+| read-only for everyone | partnerships, app_settings, mock_documents |
+| read: everyone, write: via the owning job | extracted_questions |
+| no policy — owner only | future_users (PII), batch_processes (internal state) |
+
+The two "owner only" tables are not in the `/db` bridge registry either: the old UI
+returns an empty result for them, exactly as it did before they had tables, until the
+product has a role model. 12 `exam_papers` and 4 `datalab_requests` come from the export
+as orphans (their document was deleted) — preserved, and reported in `orphans.json`.
 
 ## 5. Production, when the decisions are made
 

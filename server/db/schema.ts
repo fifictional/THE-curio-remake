@@ -773,3 +773,393 @@ export const youtubeVideos = pgTable('youtube_videos', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* -------------------------------------------------------------------------- */
+/* the remaining DynamoDB models                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The 15 models that had no table yet. Shapes come from
+ * `amplify/data/resource.ts` in the old repo (and from the real dev rows where
+ * the model has drifted), not from the UI's TypeScript, which is looser.
+ *
+ * Two things Amplify did for free and Postgres does not:
+ *   - `createdAt`/`updatedAt` exist on every row even when the model does not
+ *     declare them; every table below has both, so the bridge's `update` works.
+ *   - Composite GSI sort keys (`moduleNumber#questionNumber`) are real columns,
+ *     kept verbatim so ordering matches the old app.
+ */
+
+/** Document sections from the layout/vision pipeline. */
+export const documentSections = pgTable(
+  'document_sections',
+  {
+    documentSectionUuid: uuid('document_section_uuid').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    documentType: text('document_type').notNull().default(''),
+    subject: text('subject').notNull().default(''),
+    sectionName: text('section_name').notNull().default(''),
+    pageRange: text('page_range').notNull().default(''),
+    sectionSummary: text('section_summary').notNull().default(''),
+    sectionKeyConcepts: text('section_key_concepts').array().notNull().default([]),
+    /** `DocumentContentBlock[]` — bounding boxes, page numbers, extracted text. */
+    sectionContent: jsonb('section_content').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('document_sections_doc_idx').on(t.documentUuid)],
+);
+
+/** A completed (or in-progress) SAT mini exam, including the four modules. */
+export const satMiniExamLogs = pgTable(
+  'sat_mini_exam_logs',
+  {
+    satMiniExamLogUuid: uuid('sat_mini_exam_log_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** `SATMiniModule[]` — questions, answers and per-module scores. */
+    modules: jsonb('modules').notNull().default([]),
+    totalCorrect: integer('total_correct').notNull().default(0),
+    totalQuestions: integer('total_questions').notNull().default(0),
+    predictedSatScore: integer('predicted_sat_score').notNull().default(0),
+    readingWritingScore: integer('reading_writing_score'),
+    mathScore: integer('math_score'),
+    /** concept → { correct, total } for the learning profile. */
+    conceptPerformance: jsonb('concept_performance'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('sat_mini_exam_logs_user_started_idx').on(t.userUuid, t.startedAt),
+    index('sat_mini_exam_logs_user_completed_idx').on(t.userUuid, t.completedAt),
+  ],
+);
+
+/** Flashcard games are a snapshot: the cards are copied into the row. */
+export const flashcardGames = pgTable(
+  'flashcard_games',
+  {
+    flashcardGameUuid: uuid('flashcard_game_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, { onDelete: 'set null' }),
+    title: text('title').notNull().default(''),
+    description: text('description').notNull().default(''),
+    progress: integer('progress').notNull().default(0),
+    score: integer('score').notNull().default(0),
+    flashcards: jsonb('flashcards').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('flashcard_games_user_idx').on(t.userUuid, t.createdAt),
+    index('flashcard_games_space_idx').on(t.spaceUuid, t.createdAt),
+  ],
+);
+
+/** Pricing partners. No owner column: this is configuration, not user data. */
+export const partnerships = pgTable(
+  'partnerships',
+  {
+    partnershipUuid: uuid('partnership_uuid').primaryKey(),
+    partnerName: text('partner_name').notNull().default(''),
+    partnerCode: text('partner_code').notNull().default(''),
+    logoS3Key: text('logo_s3_key'),
+    /** A JSON *string* in DynamoDB; kept as text so nothing is silently reshaped. */
+    priceRecordOverrides: text('price_record_overrides'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('partnerships_code_idx').on(t.partnerCode)],
+);
+
+/** Gifted / partnership subscriptions. PII, and no owner column — see rls.ts. */
+export const futureUsers = pgTable(
+  'future_users',
+  {
+    futureUserUuid: uuid('future_user_uuid').primaryKey(),
+    email: text('email').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    partnershipUuid: uuid('partnership_uuid').references(() => partnerships.partnershipUuid, {
+      onDelete: 'set null',
+    }),
+    subStartDate: timestamp('sub_start_date', { withTimezone: true }),
+    subEndDate: timestamp('sub_end_date', { withTimezone: true }),
+    receiptPayload: jsonb('receipt_payload'),
+    provider: text('provider'),
+    tier: text('tier'),
+    subscriptionGranted: boolean('subscription_granted'),
+    subscriptionGrantedAt: timestamp('subscription_granted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('future_users_partnership_idx').on(t.partnershipUuid, t.createdAt)],
+);
+
+/** Internal batch job ledger (the replacement for the ECS/Step Functions fan-out). */
+export const batchProcesses = pgTable(
+  'batch_processes',
+  {
+    processId: uuid('process_id').primaryKey(),
+    jobType: text('job_type').notNull().default(''),
+    jobName: text('job_name'),
+    state: text('state'),
+    failed: boolean('failed').notNull().default(false),
+    startTime: timestamp('start_time', { withTimezone: true }).notNull().defaultNow(),
+    completionTime: timestamp('completion_time', { withTimezone: true }),
+    totalJobs: integer('total_jobs').notNull().default(0),
+    completedJobs: integer('completed_jobs').notNull().default(0),
+    failedJobs: integer('failed_jobs').notNull().default(0),
+    /** DynamoDB TTL; kept as the original epoch seconds. */
+    ttl: integer('ttl'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('batch_processes_state_idx').on(t.state, t.startTime)],
+);
+
+/** Datalab (document AI) call ledger. `taskToken` is deliberately not imported. */
+export const datalabRequests = pgTable(
+  'datalab_requests',
+  {
+    requestId: text('request_id').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    taskUuid: uuid('task_uuid').notNull(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** AWS Step Functions task token. Migrated as null: they are expired secrets. */
+    taskToken: text('task_token'),
+    status: text('status'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('datalab_requests_doc_idx').on(t.documentUuid, t.createdAt),
+    index('datalab_requests_user_idx').on(t.userUuid, t.createdAt),
+  ],
+);
+
+/** A generated mock exam paper. Its questions live in exam_paper_questions. */
+export const examPapers = pgTable(
+  'exam_papers',
+  {
+    examPaperUuid: uuid('exam_paper_uuid').primaryKey(),
+    title: text('title').notNull().default(''),
+    description: text('description'),
+    examType: text('exam_type'),
+    totalQuestions: integer('total_questions').notNull().default(0),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    spaceUuid: uuid('space_uuid').references(() => spaces.spaceUuid, { onDelete: 'set null' }),
+    paperIndex: integer('paper_index').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('exam_papers_user_idx').on(t.userUuid, t.createdAt),
+    index('exam_papers_doc_idx').on(t.documentUuid, t.createdAt),
+    index('exam_papers_space_idx').on(t.spaceUuid, t.createdAt),
+  ],
+);
+
+export const examPaperQuestions = pgTable(
+  'exam_paper_questions',
+  {
+    examPaperQuestionUuid: uuid('exam_paper_question_uuid').primaryKey(),
+    examPaperUuid: uuid('exam_paper_uuid')
+      .notNull()
+      .references(() => examPapers.examPaperUuid, { onDelete: 'cascade' }),
+    moduleUuid: uuid('module_uuid').notNull(),
+    questionNumber: text('question_number').notNull().default(''),
+    questionContent: text('question_content').notNull().default(''),
+    questionOptions: text('question_options').array().notNull().default([]),
+    questionType: text('question_type').notNull().default(''),
+    questionHint: text('question_hint').notNull().default(''),
+    questionAnswerExplanations: text('question_answer_explanations').array().notNull().default([]),
+    /** `ExamPaperQuestionReference[]` — image/table/page references. */
+    questionReference: jsonb('question_reference'),
+    moduleName: text('module_name'),
+    moduleNumber: integer('module_number'),
+    questionExamName: text('question_exam_name'),
+    questionExamSubject: text('question_exam_subject'),
+    questionTopic: text('question_topic'),
+    difficultyLevel: text('difficulty_level'),
+    verified: boolean('verified').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('exam_paper_questions_paper_idx').on(t.examPaperUuid)],
+);
+
+/** Admin question-extraction (PDF → questions) jobs. */
+export const questionExtractJobs = pgTable(
+  'question_extract_jobs',
+  {
+    questionExtractJobUuid: uuid('question_extract_job_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    s3Key: text('s3_key').notNull().default(''),
+    fileName: text('file_name').notNull().default(''),
+    fileType: text('file_type').notNull().default(''),
+    status: text('status'),
+    totalQuestions: integer('total_questions'),
+    error: text('error'),
+    /** Markdown progress log, written by the pipeline. */
+    extractionLogs: text('extraction_logs'),
+    /** JSON *string* of the modules identified in phase 1. */
+    identifiedModules: text('identified_modules'),
+    answerKeyS3Key: text('answer_key_s3_key'),
+    answerKeyFileName: text('answer_key_file_name'),
+    answerKeyStatus: text('answer_key_status'),
+    answerKeyError: text('answer_key_error'),
+    identifiedAnswerModules: text('identified_answer_modules'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('question_extract_jobs_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+/** Admin question-generation (prompt → questions) jobs. */
+export const questionGenerationJobs = pgTable(
+  'question_generation_jobs',
+  {
+    questionGenerationJobUuid: uuid('question_generation_job_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    prompt: text('prompt').notNull().default(''),
+    status: text('status'),
+    totalQuestions: integer('total_questions'),
+    error: text('error'),
+    generationLogs: text('generation_logs'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('question_generation_jobs_user_idx').on(t.userUuid, t.createdAt)],
+);
+
+/**
+ * The shared question bank: extracted or generated questions used by the SAT
+ * mini exams. Not user-owned — ownership belongs to the job that produced them.
+ *
+ * The id is **text**, not uuid: dev rows are `"<uuid>_m3_q4"`, which the old
+ * `a.id()` declaration never enforced. A uuid column would quarantine all 120.
+ */
+export const extractedQuestions = pgTable(
+  'extracted_questions',
+  {
+    extractedQuestionUuid: text('extracted_question_uuid').primaryKey(),
+    questionExtractJobUuid: uuid('question_extract_job_uuid').references(
+      () => questionExtractJobs.questionExtractJobUuid,
+      { onDelete: 'cascade' },
+    ),
+    questionGenerationJobUuid: uuid('question_generation_job_uuid').references(
+      () => questionGenerationJobs.questionGenerationJobUuid,
+      { onDelete: 'cascade' },
+    ),
+    moduleNumber: integer('module_number').notNull().default(0),
+    questionNumber: integer('question_number').notNull().default(0),
+    /** Amplify's composite GSI key `moduleNumber#questionNumber`, kept verbatim. */
+    moduleNumberQuestionNumber: text('module_number_question_number'),
+    questionContent: text('question_content').notNull().default(''),
+    questionType: text('question_type'),
+    questionOptions: text('question_options').array().notNull().default([]),
+    correctAnswer: text('correct_answer'),
+    answerExplanations: text('answer_explanations').array(),
+    hint: text('hint'),
+    /** A single `ExtractedQuestionReference`, despite the legacy `.array()` GSI. */
+    questionReference: jsonb('question_reference'),
+    referenceExtractionStatus: text('reference_extraction_status'),
+    referenceExtractionError: text('reference_extraction_error'),
+    needsReference: boolean('needs_reference'),
+    referenceGenerationPrompt: text('reference_generation_prompt'),
+    needsCodeInterpreterForAnswer: boolean('needs_code_interpreter_for_answer'),
+    exam: text('exam').notNull().default(''),
+    module: text('module').notNull().default(''),
+    topic: text('topic'),
+    subtopic: text('subtopic'),
+    concept: text('concept'),
+    difficulty: text('difficulty'),
+    examModuleUuid: uuid('exam_module_uuid'),
+    verified: boolean('verified'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifiedBy: uuid('verified_by'),
+    isGenerated: boolean('is_generated'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('extracted_questions_extract_job_idx').on(
+      t.questionExtractJobUuid,
+      t.moduleNumberQuestionNumber,
+    ),
+    index('extracted_questions_generation_job_idx').on(t.questionGenerationJobUuid, t.createdAt),
+    index('extracted_questions_exam_module_idx').on(t.examModuleUuid, t.createdAt),
+  ],
+);
+
+/** Seeded sample documents (the "mock" library), not user uploads. */
+export const mockDocuments = pgTable(
+  'mock_documents',
+  {
+    mockDocumentUuid: uuid('mock_document_uuid').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    thumbnailKey: text('thumbnail_key').notNull().default(''),
+    contentKey: text('content_key').notNull().default(''),
+    title: text('title').notNull().default(''),
+    description: text('description').notNull().default(''),
+    youtube: boolean('youtube').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('mock_documents_doc_idx').on(t.documentUuid)],
+);
+
+/** Global app configuration: feature flags, maintenance message, memory kill switch. */
+export const appSettings = pgTable('app_settings', {
+  appSettingsUuid: uuid('app_settings_uuid').primaryKey(),
+  /** `FeatureFlag[]` — { flagName, flagValue }. */
+  featureFlags: jsonb('feature_flags').notNull().default([]),
+  maintenanceMessage: text('maintenance_message'),
+  memoryFeatureEnabled: boolean('memory_feature_enabled'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Mastery changes that used to feed the Neptune learning profile. */
+export const userLearningProfileHistory = pgTable(
+  'user_learning_profile_history',
+  {
+    userLearningProfileHistoryUuid: uuid('user_learning_profile_history_uuid').primaryKey(),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    concept: text('concept').notNull().default(''),
+    /** `{ oldValue, newValue }`. */
+    change: jsonb('change').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('user_learning_profile_history_user_idx').on(t.userUuid, t.createdAt),
+    index('user_learning_profile_history_concept_idx').on(t.concept, t.createdAt),
+  ],
+);

@@ -29,6 +29,13 @@
       "when": 1794839958920,
       "tag": "0003_even_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794845829520,
+      "tag": "0004_handy_argent",
+      "breakpoints": true
     }
   ]
 }

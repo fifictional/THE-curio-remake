@@ -1,6 +1,6 @@
 # Backend status — what exists today
 
-**Repo:** `github.com/fifictional/THE-curio-remake` (37 commits)
+**Repo:** `github.com/fifictional/THE-curio-remake` (54 commits)
 **Runtime:** local only — no AWS account, no deployment
 **Stack:** Hono on Node · PostgreSQL 16 (Docker) · Drizzle · Better Auth · Qdrant (endpoints only) · OpenAI (optional)
 
@@ -22,12 +22,13 @@
 
 ## 2. Database
 
-- **27 tables**, all created by two committed SQL migrations (`0000`, `0001`)
+- **43 domain tables**, created by committed SQL migrations (`0000`–`0003`), plus
+  `import_quarantine` and the four Better Auth tables
 - 4 auth tables (`users`, `sessions`, `accounts`, `verifications`) + 23 domain tables
 - Real foreign keys with explicit `ON DELETE` behaviour, `timestamptz`, `jsonb` for the old embedded types, Postgres enums for message role/type
 - Migrations via `drizzle-kit generate` → reviewed SQL files (no "the platform generated it" black box)
 
-**Migrated models:** users, spaces, space_users, documents, document_summaries, chats, messages, flashcards, flashcard_decks, questions, quizzes, quiz_questions, quiz_attempts, mock_exams, mock_exam_logs, tasks, user_requests, user_action_logs, metadata, bundles, exam_modules, receipts, purchases, curio_subscriptions.
+**Migrated models (all 44):** app_settings, batch_processes, bundles, chat_citations, chats, curio_subscriptions, datalab_requests, document_sections, document_summaries, document_vision_outputs, documents, exam_modules, exam_paper_questions, exam_papers, extracted_questions, flashcard_decks, flashcard_games, flashcards, future_users, memory_blocks, memory_candidates, messages, metadata, mock_documents, mock_exam_logs, mock_exams, partnerships, purchases, question_extract_jobs, question_generation_jobs, questions, quiz_attempts, quiz_questions, quizzes, receipts, sat_mini_exam_logs, space_users, spaces, tasks, user_action_logs, user_learning_profile_history, user_requests, youtube_videos.
 
 ## 3. Security — the headline change
 
@@ -36,7 +37,7 @@ The old stack had **65 `allow.publicApiKey` rules vs 2 owner-scoped ones**: the 
 Now:
 
 - The browser **never touches the database**. Every read/write goes through the API.
-- **Row-level security is enforced by Postgres**, not by route guards: 16 tables have `ENABLE + FORCE ROW LEVEL SECURITY` with owner policies (`messages` via its chat, `document_summaries` via its document).
+- **Row-level security is enforced by Postgres**, not by route guards: 37 tables have `ENABLE + FORCE ROW LEVEL SECURITY` with owner policies (`messages` via its chat, `document_summaries`/`document_sections` via their document, `exam_paper_questions` via its paper). Three are read-only for everyone (partnerships, app_settings, mock_documents), `future_users` and `batch_processes` have no policy at all, and the shared `extracted_questions` bank is readable by all but writable only through the job that produced the row.
 - **Roles are split:** `curio` (owner: migrations/seed) and `curio_app` (`LOGIN NOBYPASSRLS`, used by the app). This matters — a superuser **bypasses RLS even with FORCE**, which silently disabled the whole scheme at first.
 - Every query runs inside `asUser(userId)` → a transaction that sets `app.user_id`, so the policies apply per request.
 - Ownership is proven by test, not assertion: a second signed-in user gets `Chat not found` on `/messages`, `/aiChat`, `/moveChat`, and **0 rows** when querying Postgres directly.
@@ -73,7 +74,7 @@ The original frontend (678 files) was copied in as `ui/` and pointed at the new 
 | `ui/src/lib/local-storage.ts` | `@aws-amplify/storage` (`uploadData`, `getUrl`, `downloadData`, `remove`) |
 | `ui/amplify_outputs.json` (stub) | generated Amplify config |
 
-`POST /db` answers `{model, method, args}` from Postgres **inside `asUser()`**, so the bridge grants no extra reach. It filters unknown AppSync-only columns, coerces ISO datetimes, stubs `AppSettings`, and caches reads for 2s (invalidated on writes).
+`POST /db` answers `{model, method, args}` from Postgres **inside `asUser()`**, so the bridge grants no extra reach. It serves 37 models, filters unknown AppSync-only columns, coerces ISO datetimes, and caches reads for 2s (invalidated on writes). Models with no registry entry (including the two owner-only tables) return an empty result, which is what keeps unmigrated screens rendering.
 
 ## 7. Document pipeline (local)
 
@@ -87,7 +88,7 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 
 ## 8. Tests + CI
 
-- **12 automated tests**: 5 unit (ported route over HTTP with a fake client) + 7 integration against real Postgres + real Better Auth (two users, owner access, cross-user denial, RLS at the DB layer, aiChat persistence).
+- **13 automated tests**: 5 unit (ported route over HTTP with a fake client) + 8 integration against real Postgres + real Better Auth (two users, owner access, cross-user denial, RLS at the DB layer, aiChat persistence).
 - Integration suite self-skips when no database is reachable, so `npm test` stays green anywhere.
 - GitHub Actions: Postgres + Qdrant service containers → migrate → RLS → typecheck → tests → Qdrant smoke; separate job builds the UI.
 - Strict `tsc --noEmit` clean in both packages.
@@ -103,7 +104,8 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 ## 10. What is explicitly NOT done
 
 - **No deployment**, no AWS resources created, no CI secrets configured
-- **No real data migration** — the 44-model export/import needs account read access
+- **No production data migration** — dev is migrated (13,673 rows, 299 objects); release is
+  blocked on the decisions in `docs/migration-runbook.md` §5
 - **PDF parsing / real document intelligence**
 - **Payments (Paddle)** and tier enforcement
 - **Chat citations / RAG in the UI** — backend endpoints exist, the UI does not call them

@@ -21,28 +21,43 @@ import type { Context } from 'hono';
 
 import { asUser } from '../db/scope';
 import {
+  appSettings,
+  batchProcesses,
   bundles,
   chats,
   curioSubscriptions,
+  datalabRequests,
+  documentSections,
   documentSummaries,
   documents,
   examModules,
+  examPaperQuestions,
+  examPapers,
+  extractedQuestions,
   flashcardDecks,
+  flashcardGames,
   flashcards,
+  futureUsers,
   messages,
   metadata,
+  mockDocuments,
   mockExamLogs,
   mockExams,
+  partnerships,
   purchases,
+  questionExtractJobs,
+  questionGenerationJobs,
   questions,
   quizAttempts,
   quizQuestions,
   quizzes,
   receipts,
+  satMiniExamLogs,
   spaceUsers,
   spaces,
   tasks,
   userActionLogs,
+  userLearningProfileHistory,
   userRequests,
   users,
 } from '../db/schema';
@@ -127,7 +142,67 @@ const REGISTRY: Record<string, ModelDef> = {
     pk: 'documentSummaryUuid',
   },
   FlashcardDeck: { table: flashcardDecks as never, pk: 'flashcardDeckUuid' },
+
+  /*
+   * The models that only became tables later. `FutureUser` and `BatchProcess`
+   * are deliberately absent: rls.ts denies the app access to both (PII and
+   * internal job state have no role model yet), so they keep the "unknown model"
+   * behaviour — an empty result — instead of a half-working screen.
+   */
+  DocumentSection: {
+    table: documentSections as never,
+    pk: 'documentSectionUuid',
+    timestamps: ['createdAt'],
+  },
+  MockDocument: { table: mockDocuments as never, pk: 'mockDocumentUuid' },
+  DatalabRequest: {
+    table: datalabRequests as never,
+    pk: 'requestId',
+    timestamps: ['createdAt'],
+  },
+  ExamPaper: { table: examPapers as never, pk: 'examPaperUuid', timestamps: ['createdAt'] },
+  ExamPaperQuestion: {
+    table: examPaperQuestions as never,
+    pk: 'examPaperQuestionUuid',
+    timestamps: ['createdAt'],
+  },
+  QuestionExtractJob: {
+    table: questionExtractJobs as never,
+    pk: 'questionExtractJobUuid',
+    timestamps: ['createdAt'],
+  },
+  QuestionGenerationJob: {
+    table: questionGenerationJobs as never,
+    pk: 'questionGenerationJobUuid',
+    timestamps: ['createdAt'],
+  },
+  ExtractedQuestion: {
+    table: extractedQuestions as never,
+    pk: 'extractedQuestionUuid',
+    timestamps: ['createdAt'],
+  },
+  SATMiniExamLog: {
+    table: satMiniExamLogs as never,
+    pk: 'satMiniExamLogUuid',
+    timestamps: ['startedAt'],
+  },
+  FlashcardGame: {
+    table: flashcardGames as never,
+    pk: 'flashcardGameUuid',
+    timestamps: ['createdAt'],
+  },
+  Partnership: { table: partnerships as never, pk: 'partnershipUuid' },
+  /** 21 rows in dev: nothing stopped the old UI creating one per session. */
+  AppSettings: { table: appSettings as never, pk: 'appSettingsUuid', timestamps: ['updatedAt'] },
+  UserLearningProfileHistory: {
+    table: userLearningProfileHistory as never,
+    pk: 'userLearningProfileHistoryUuid',
+    timestamps: ['createdAt'],
+  },
 };
+
+/** Number of models the bridge serves, used by /db/health. */
+export const modelCount = Object.keys(REGISTRY).length;
 
 interface DbRequest {
   model: string;
@@ -173,28 +248,14 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
     return c.json({ data: emptyForMethod(body.method) }, 401);
   }
 
-  /*
-   * v0 stubs for models the old UI reads on every page but that have no table
-   * yet. Returning a sensible empty shape keeps the shell rendering instead of
-   * throwing on `.featureFlags.length` etc.
-   */
-  const STUBS: Record<string, () => unknown> = {
-    AppSettings: () => ({
-      appSettingsUuid: 'local',
-      featureFlags: [],
-      maintenanceMessage: null,
-      memoryFeatureEnabled: false,
-    }),
-  };
-
   const def = REGISTRY[body.model];
   if (!def) {
-    const stub = STUBS[body.model];
-    if (stub) {
-      const value = stub();
-      return c.json({ data: body.method === 'list' || body.method.startsWith('list') ? [value] : value });
-    }
-    // Unmigrated model: an empty result keeps old screens rendering.
+    /*
+     * Unknown model: an empty result of the right shape keeps old screens
+     * rendering instead of throwing on `.data.length`. That is how the two
+     * owner-only tables (`FutureUser`, `BatchProcess`) behave until there is a
+     * role model — see rls.ts.
+     */
     return c.json({ data: emptyForMethod(body.method) });
   }
 
