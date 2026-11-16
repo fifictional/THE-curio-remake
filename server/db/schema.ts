@@ -159,6 +159,9 @@ export const documents = pgTable(
     fileName: text('file_name').notNull(),
     type: text('type').notNull(),
     hasRagEmbeddings: boolean('has_rag_embeddings').notNull().default(false),
+    youtubeVideoUuid: uuid('youtube_video_uuid'),
+    flashcardDeckUuid: uuid('flashcard_deck_uuid'),
+    documentCount: integer('document_count'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -248,6 +251,8 @@ export const flashcards = pgTable(
     }),
     title: text('title').notNull(),
     content: text('content').notNull(),
+    references: jsonb('references'),
+    vote: text('vote'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -274,8 +279,12 @@ export const questions = pgTable(
       onDelete: 'set null',
     }),
     questionContent: text('question_content').notNull(),
+    questionReferences: jsonb('question_references'),
     options: text('options').array().notNull(),
     answer: integer('answer').notNull(),
+    hint: text('hint'),
+    answerExplanations: text('answer_explanations').array(),
+    vote: text('vote'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -752,4 +761,15 @@ export const importQuarantine = pgTable('import_quarantine', {
   reason: text('reason').notNull(),
   raw: jsonb('raw'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** YouTube sources — a Document of type "youtube" points at one of these. */
+export const youtubeVideos = pgTable('youtube_videos', {
+  youtubeVideoUuid: uuid('youtube_video_uuid').primaryKey(),
+  videoId: text('video_id').notNull(),
+  title: text('title'),
+  transcriptKey: text('transcript_key'),
+  thumbnailUrl: text('thumbnail_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
