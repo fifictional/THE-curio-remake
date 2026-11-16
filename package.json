@@ -19,7 +19,8 @@
     "ui:build": "npm --prefix ui run build",
     "ui:start": "npm --prefix ui run start",
     "migrate:export": "node scripts/export-dynamo.mjs",
-    "migrate:import": "node scripts/import-postgres.mjs"
+    "migrate:import": "node scripts/import-postgres.mjs",
+    "migrate:fixture": "node scripts/make-fixture.mjs --out /tmp/curio-fixture && node scripts/import-postgres.mjs --raw /tmp/curio-fixture --truncate"
   },
   "dependencies": {
     "better-auth": "^1.7.23",

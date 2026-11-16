@@ -62,6 +62,13 @@ Reads `docs/migration/raw`, loads in foreign-key order, and prints a table with
 | A row that fails | written to `import_quarantine` with the reason; the table continues |
 | Re-run | `on conflict do nothing`; `inserted` honestly reports 0 |
 
+## 2b. Dry-run without AWS
+
+`npm run migrate:fixture` builds a fixture from the real row shapes (including a
+corrupted `MemoryBlock.payload` and a message with no `userUuid`), imports it into
+the local database with `--truncate`, and reports quarantine counts. Use it to
+regression-test the importer after any transform change — no credentials needed.
+
 ## 3. Verify
 
 ```sql
