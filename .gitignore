@@ -13,3 +13,8 @@ ui/amplify_outputs.json
 ui/.env*.local
 
 .local/
+
+# AWS inventory output (may contain infrastructure detail)
+docs/migration/templates/
+docs/migration/*.json
+docs/migration/aws-inventory.md
