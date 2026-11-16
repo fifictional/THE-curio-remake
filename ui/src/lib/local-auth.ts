@@ -95,11 +95,16 @@ export async function signOut() {
 }
 
 export async function signIn(input: { email: string; password: string }) {
+  // Autofill loves to append a space or a zero-width character; Better Auth
+  // rejects that as INVALID_EMAIL. Normalise before sending.
+  const email = input.email.trim().toLowerCase();
+  const password = input.password;
+
   const res = await fetch(`${API}/api/auth/sign-in/email`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ email, password }),
   });
   if (!res.ok) throw new Error((await res.text()) || 'Sign in failed');
   clearAuthCache();
@@ -107,11 +112,12 @@ export async function signIn(input: { email: string; password: string }) {
 }
 
 export async function signUp(input: { email: string; password: string; name?: string }) {
+  const email = input.email.trim().toLowerCase();
   const res = await fetch(`${API}/api/auth/sign-up/email`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name: input.name ?? input.email.split('@')[0], ...input }),
+    body: JSON.stringify({ name: input.name ?? email.split('@')[0], email, password: input.password }),
   });
   if (!res.ok) throw new Error((await res.text()) || 'Sign up failed');
   clearAuthCache();
