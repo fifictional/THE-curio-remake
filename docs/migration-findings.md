@@ -120,3 +120,52 @@ keys on `UserRequest`/`Flashcard`/`Question`/`Purchase`, and the plain
    not after.
 5. `UserRequest` can be windowed (last 90 days) if migration time matters; it is
    audit data, and the app only needs recent rows for rate limits.
+
+---
+
+## 8. Sample inspection (dev rows, 3 per table)
+
+### Strip on import
+- **`__typename` is stored on every row.** An Amplify artifact; the loader must drop it.
+
+### Data bugs found in the wild
+- **`MemoryBlock.payload` is corrupted in some rows.** Instead of an object it is a
+  character-indexed map: `{"0":"{","1":"\"","2":"e",…,"224":"}"}` — 225 keys spelling out the
+  real JSON. Something wrote a JSON *string* into a `json` field and Amplify split it per
+  character. Two of three sampled blocks are affected.
+  → The importer must detect this shape (`keys are integers`) and rebuild the string by
+  sorting numerically, then `JSON.parse` it. Rows that fail stay quarantined, not dropped.
+- **`MockExam.questions[].answer` contains out-of-range values** (e.g. `-15` where options
+  are 4). Treat as unverified data: keep the row, flag it, don't crash the loader.
+
+### Confirmed shapes
+- **Timestamps** are ISO-8601 strings, some with microseconds (`2026-11-16T15:32:24.021079Z`).
+- **`SpaceUsers` stores the composite attribute** `level#createdAt` = `"0#2026-01-27T10:15:16.629Z"`.
+  It is a real column, so the Postgres side needs it (or an equivalent two-column ORDER BY).
+- **`MemoryBlock` stores `blockType#updatedAt`** the same way.
+- **`Message` and `ChatCitation` carry `userUuid`** even though the schema derives it. Keep it:
+  it makes RLS direct instead of a join through `chats`.
+- **`Task.args`** is a map with nested `chatArgs` → `jsonb`.
+- **`DatalabRequest.taskToken`** is a long Step Functions token — do not migrate it.
+
+### Storage key conventions (they are not uniform)
+| Object | Dev sample |
+|---|---|
+| `Document.key` | `student-documents/<ownerUuid>/<uuid>` (no extension) |
+| `Document.originalKey` | `student-documents/<ownerUuid>/originals/<documentUuid>` |
+| `YoutubeVideo.transcriptKey` | `student-documents/<ownerUuid>/<uuid>/youtube-transcript.md` **or** `yt-transcripts/<videoId>/youtube-transcript.md` |
+
+Two conventions for transcripts means the file mover needs a mapping, not a prefix swap.
+
+### Fields that exist in AWS but not in our schema
+- `UserProfile`: `country`, `firstName`, `lastName`, `userDescription`, `userHelp` — we only
+  store `name`/`email`, so a faithful migration needs those columns.
+- `CurioSubscription`: `nextBillingDate`, `pausedAt`; `provider` includes `flylane` and
+  `partnership` (ours is free text, fine).
+- `Quiz`: `lastScore`, `lastTotal` (not in the schema we wrote).
+- `Document`: `documentCount`, `flashcardDeckUuid`, `youtubeVideoUuid` (we have the last two).
+
+### Sizing confirmation
+- `DocumentSummary.summary` is a full markdown study guide (2–8 KB per row). In production that
+  is 26k rows × KBs — a big share of the 601 MB table size. Fine for `text`, but the loader
+  should stream rather than buffer.
