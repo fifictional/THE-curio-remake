@@ -89,10 +89,17 @@ export function createApp(opts: AppOptions = {}) {
 
   app.get('/__calls', (c) => c.json(calls));
 
-  /** Dev-only relay for browser errors from the legacy UI. */
+  /**
+   * Dev-only relay for browser errors from the legacy UI.
+   *
+   * Requires a session: an unauthenticated logging endpoint is free storage for
+   * anyone who finds it. Pre-login errors simply are not relayed.
+   */
   app.post('/log', async (c) => {
+    if (!c.var.identity) return c.json({ error: 'Not signed in' }, 401);
     const body = await c.req.json().catch(() => ({}));
-    console.error('[browser]', JSON.stringify(body));
+    const text = JSON.stringify(body).slice(0, 4000);
+    console.error('[browser]', text);
     return c.json({ ok: true });
   });
 
