@@ -33,6 +33,23 @@ Patched call sites (4 files): `providers/amplify-provider.tsx`,
 `providers/session-provider.tsx`, `app/login/page.tsx`, and the 4 SAT-mini pages
 that import `useAuthenticator`.
 
+Two further patches are **bug fixes found by running the app**, not shims:
+
+- `components/core/curio-markdown.tsx` — `<MathJax>` wrapped nested containers
+  *and* their children, and it was applied to plain text. A single document page
+  started ~51 `typesetPromise` calls, all of which rejected with
+  `Typesetting failed: … nextSibling`, leaving the maths unrendered. It is now
+  skipped when the text contains no maths, and only wrapped on leaf blocks.
+- `providers/providers.tsx` — MathJax v3 does not support concurrent
+  `typesetPromise` calls; the provider queues them (`onStartup` + a promise
+  chain), which is MathJax's own documented requirement.
+
+`ui/` also carries a Playwright smoke test (`npm run smoke`, config in
+`ui/playwright.smoke.config.ts`): it walks the migrated screens against the real
+database and fails on uncaught errors, console errors, 5xx or an error boundary.
+That is how both bugs above were found, and it is the per-screen parity check the
+exit criteria below need.
+
 Server side, `POST /db` (`server/routes/db.ts`) answers
 `{ model, method, args, options }` from Postgres **inside `asUser()`**, so RLS
 still decides visibility. Unknown models return empty data so unmigrated screens

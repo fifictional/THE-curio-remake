@@ -106,6 +106,21 @@ cookie forwarding into loaders; that is the next step, not an oversight.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 
+## Smoke test (legacy UI on real data)
+
+Walks the migrated screens and fails on uncaught errors, console errors, 5xx or an
+error boundary. Needs both servers and the migrated database:
+
+```bash
+npm start              # API :3101
+npm --prefix ui run build && npm --prefix ui run start   # UI :3300
+npm run smoke
+```
+
+It prints a table per screen (`/db` rows fetched, response size) plus a list of
+expected 404s from features that are not migrated yet (`/learningProfileQuery`),
+so a real regression is not hidden among them.
+
 ## Qdrant
 
 `npm run qdrant:smoke` upserts three points, searches with a payload filter and

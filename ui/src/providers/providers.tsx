@@ -7,6 +7,7 @@ import { AmplifyProvider, AnalyticsProvider, ChatProvider, CommonProvider, CoreP
 import { useState } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import { MathJaxContext } from 'better-react-mathjax';
+import type { MathJax3Object } from 'better-react-mathjax';
 import * as Sentry from '@sentry/nextjs';
 
 // Normalize any thrown value (including raw Amplify `{ errors: [...] }`
@@ -104,9 +105,47 @@ const MathJaxConfig = {
  */
 const MATHJAX_SRC = process.env.NEXT_PUBLIC_MATHJAX_SRC ?? '/mathjax/es5/tex-mml-chtml.js';
 
+/**
+ * MathJax v3 does not support concurrent typesetting. better-react-mathjax
+ * issues one `typesetPromise` per <MathJax> element, so a document page (or a
+ * chat with a few dozen messages) starts every call at once; the losers throw
+ * "Typesetting failed: Cannot read properties of null (reading 'nextSibling')"
+ * and their maths stays as raw LaTeX. MathJax's own advice is to serialise the
+ * calls, so this queue does exactly that and nothing else.
+ */
+function serializeTypesetting(mathJax: MathJax3Object) {
+  const install = (target: unknown) => {
+    const mj = target as { typesetPromise?: (elements: unknown[]) => Promise<unknown> };
+    const typeset = mj.typesetPromise;
+    if (typeof typeset !== 'function') return;
+
+    let queue: Promise<unknown> = Promise.resolve();
+    mj.typesetPromise = (elements: unknown[]) => {
+      const next = queue.then(() => typeset.call(mj, elements));
+      queue = next.catch(() => {
+        /* one failed block must not stall the queue */
+      });
+      return next;
+    };
+  };
+
+  // `onStartup` fires on script load, which is *before* MathJax has finished
+  // starting up: typesetPromise exists, but the startup promise is the point
+  // after which it is safe. Patch on both, and once more when startup resolves
+  // (its resolution value is void, so the target is captured here).
+  install(mathJax);
+  const startup = (mathJax as unknown as { startup?: { promise?: Promise<unknown> } }).startup;
+  startup?.promise?.then(() => install(mathJax)).catch(() => {});
+}
+
 function WithMathJax({ children }: { children: React.ReactNode }) {
   return (
-    <MathJaxContext version={3} src={MATHJAX_SRC} config={MathJaxConfig}>
+    <MathJaxContext
+      version={3}
+      src={MATHJAX_SRC}
+      config={MathJaxConfig}
+      onStartup={serializeTypesetting}
+    >
       {children}
     </MathJaxContext>
   );

@@ -9,6 +9,8 @@ dist/
 # legacy UI (strangler copy)
 ui/node_modules/
 ui/.next/
+ui/test-results/
+ui/playwright-report/
 ui/amplify_outputs.json
 ui/.env*.local
 
