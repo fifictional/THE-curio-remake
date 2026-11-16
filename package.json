@@ -17,7 +17,9 @@
     "web": "npm --prefix web run dev",
     "qdrant:smoke": "tsx server/qdrant-smoke.ts",
     "ui:build": "npm --prefix ui run build",
-    "ui:start": "npm --prefix ui run start"
+    "ui:start": "npm --prefix ui run start",
+    "migrate:export": "node scripts/export-dynamo.mjs",
+    "migrate:import": "node scripts/import-postgres.mjs"
   },
   "dependencies": {
     "better-auth": "^1.7.23",
@@ -28,6 +30,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1169.0",
+    "@aws-sdk/util-dynamodb": "^3.996.9",
     "@hono/node-server": "^2.1.8",
     "@types/node": "^26.6.6",
     "drizzle-kit": "^0.31.11",

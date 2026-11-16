@@ -18,3 +18,6 @@ ui/.env*.local
 docs/migration/templates/
 docs/migration/*.json
 docs/migration/aws-inventory.md
+
+# exported raw data
+docs/migration/raw/
