@@ -182,7 +182,17 @@ payload = {"identity": identity, "region": region, "tables": tables, "stacks": s
 with open(os.path.join(out_dir, "aws-inventory.json"), "w") as fh:
     json.dump(payload, fh, indent=2)
 
+# Amplify table names end with the data backend id. The tags confirm the mapping
+# (verified from the tagged rows): shq3… = release, e5zkp… = main/dev.
+KNOWN_SUFFIX = {
+    "shq3giqnkzcpjkd4lgxh3yfjq4": "RELEASE",
+    "e5zkpg67jvezvmxgyuoq2awjty": "dev",
+}
+
 def env_of(t):
+    for suffix, name in KNOWN_SUFFIX.items():
+        if t["name"].endswith(f"-{suffix}-NONE"):
+            return name
     stack = t["stack"]
     if "release-branch" in stack:
         return "RELEASE"
