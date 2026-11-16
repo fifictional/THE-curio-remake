@@ -19,6 +19,7 @@
 import { relations } from 'drizzle-orm';
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -50,6 +51,15 @@ export const users = pgTable('users', {
   name: text('name'),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
+  // Profile fields that only exist in the DynamoDB UserProfile rows.
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  country: text('country'),
+  userDescription: text('user_description'),
+  userHelp: text('user_help'),
+  onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
+  onboardingSkipped: boolean('onboarding_skipped').notNull().default(false),
+  memoryDisabled: boolean('memory_disabled').notNull().default(false),
   image: text('image'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -198,6 +208,9 @@ export const messages = pgTable(
     chatUuid: uuid('chat_uuid')
       .notNull()
       .references(() => chats.chatUuid, { onDelete: 'cascade' }),
+    // Amplify stored this even though it is derivable from the chat. Keeping it
+    // makes the RLS policy a direct column check instead of a join.
+    userUuid: uuid('user_uuid').references(() => users.id, { onDelete: 'cascade' }),
     role: messageRole('role').notNull(),
     type: messageType('type').notNull().default('text'),
     content: text('content').notNull(),
@@ -318,12 +331,18 @@ export const spaceUsers = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     level: integer('level').notNull().default(0),
+    /**
+     * Amplify stores the GSI sort key as a literal string: `"0#2026-01-27T10:15:16.629Z"`.
+     * Kept as-is so ordering is byte-identical to the old app.
+     */
+    levelCreatedAt: text('level_created_at'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('space_users_space_idx').on(t.spaceUuid),
     index('space_users_user_idx').on(t.userUuid),
+    index('space_users_level_idx').on(t.spaceUuid, t.levelCreatedAt),
   ],
 );
 
@@ -422,6 +441,8 @@ export const quizzes = pgTable(
     sourceType: text('source_type'),
     sourceUuid: uuid('source_uuid'),
     questionCount: integer('question_count').notNull().default(0),
+    lastScore: integer('last_score'),
+    lastTotal: integer('last_total'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -575,6 +596,8 @@ export const curioSubscriptions = pgTable(
     currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
     currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    nextBillingDate: timestamp('next_billing_date', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -619,3 +642,114 @@ export const flashcardDecks = pgTable(
   },
   (t) => [index('flashcard_decks_user_idx').on(t.userUuid)],
 );
+
+/* ========================================================================== */
+/* Tables the dev migration needs that had not been modelled yet             */
+/* ========================================================================== */
+
+/** Citations attached to an assistant message (url ranges inside the text). */
+export const chatCitations = pgTable(
+  'chat_citations',
+  {
+    chatCitationUuid: uuid('chat_citation_uuid').primaryKey(),
+    chatUuid: uuid('chat_uuid')
+      .notNull()
+      .references(() => chats.chatUuid, { onDelete: 'cascade' }),
+    messageUuid: uuid('message_uuid')
+      .notNull()
+      .references(() => messages.messageUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid').references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    title: text('title').notNull(),
+    url: text('url').notNull(),
+    startIndex: integer('start_index').notNull().default(0),
+    endIndex: integer('end_index').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('chat_citations_chat_idx').on(t.chatUuid, t.createdAt)],
+);
+
+/**
+ * Durable memory about a learner. `payload` arrives as `jsonb` but production
+ * contains rows where a JSON string was stored and Amplify split it into a
+ * character-indexed map — the importer repairs those.
+ */
+export const memoryBlocks = pgTable(
+  'memory_blocks',
+  {
+    memoryBlockUuid: uuid('memory_block_uuid').primaryKey(),
+    ownerUuid: uuid('owner_uuid').notNull(),
+    scope: text('scope').notNull().default('user'),
+    scopeId: text('scope_id').notNull(),
+    blockType: text('block_type').notNull(),
+    /** Amplify's GSI sort attribute: `"<blockType>#<updatedAt>"`. */
+    blockTypeUpdatedAt: text('block_type_updated_at'),
+    payload: jsonb('payload'),
+    topic: text('topic').notNull(),
+    subject: text('subject'),
+    documentUuid: uuid('document_uuid'),
+    confidence: doublePrecision('confidence').notNull().default(0),
+    frequency: integer('frequency').notNull().default(1),
+    attemptScores: doublePrecision('attempt_scores').array(),
+    attemptDates: text('attempt_dates').array(),
+    sources: text('sources').array(),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }),
+    lastReinforcedAt: timestamp('last_reinforced_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
+    addedFrom: text('added_from'),
+    isBackfill: boolean('is_backfill'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('memory_blocks_owner_idx').on(t.ownerUuid, t.blockTypeUpdatedAt),
+    index('memory_blocks_scope_idx').on(t.scopeId),
+  ],
+);
+
+export const memoryCandidates = pgTable(
+  'memory_candidates',
+  {
+    memoryCandidateUuid: uuid('memory_candidate_uuid').primaryKey(),
+    ownerUuid: uuid('owner_uuid').notNull(),
+    scope: text('scope').notNull().default('user'),
+    scopeId: text('scope_id').notNull(),
+    proposedBlock: jsonb('proposed_block'),
+    decision: text('decision').notNull().default('rejected'),
+    mergedIntoUuid: uuid('merged_into_uuid'),
+    messageUuid: uuid('message_uuid'),
+    chatUuid: uuid('chat_uuid'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('memory_candidates_owner_idx').on(t.ownerUuid, t.createdAt)],
+);
+
+/** Per-page layout detection output. Left out of the production plan; dev only. */
+export const documentVisionOutputs = pgTable(
+  'document_vision_outputs',
+  {
+    documentVisionOutputUuid: uuid('document_vision_output_uuid').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    totalPages: integer('total_pages'),
+    pageNumber: integer('page_number'),
+    bbox: text('bbox'),
+    className: text('class_name'),
+    confidence: doublePrecision('confidence'),
+    caption: text('caption'),
+    text: text('text'),
+  },
+  (t) => [index('document_vision_outputs_doc_idx').on(t.documentUuid, t.pageNumber)],
+);
+
+/** Dead-letter table for rows the importer could not transform. */
+export const importQuarantine = pgTable('import_quarantine', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sourceTable: text('source_table').notNull(),
+  reason: text('reason').notNull(),
+  raw: jsonb('raw'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

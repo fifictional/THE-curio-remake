@@ -39,6 +39,15 @@ const tables = [
 /** Tables whose ownership comes from their document, not their own column. */
 const documentOwned = ['document_summaries'] as const;
 
+/**
+ * Tables that key ownership on `owner_uuid` (the memory feature uses it as the
+ * owner of a block, which is not always the same as the row's user).
+ */
+const ownerUuidTables = ['memory_blocks', 'memory_candidates'] as const;
+
+/** Citations key on the chat they belong to. */
+const chatOwned = ['chat_citations'] as const;
+
 /** Tables that key ownership on `user_id` rather than `user_uuid`. */
 const userIdTables = ['purchases', 'curio_subscriptions', 'receipts'] as const;
 
@@ -74,6 +83,40 @@ async function main() {
       with check (user_uuid = current_setting('app.user_id', true)::uuid)
     `);
     console.log(`  rls  ${table}`);
+  }
+
+  for (const table of chatOwned) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (
+        user_uuid = current_setting('app.user_id', true)::uuid
+        or exists (
+          select 1 from chats c
+          where c.chat_uuid = ${table}.chat_uuid
+            and c.user_uuid = current_setting('app.user_id', true)::uuid
+        )
+      )
+      with check (
+        user_uuid is null
+        or user_uuid = current_setting('app.user_id', true)::uuid
+      )
+    `);
+    console.log(`  rls  ${table} (chat or user_uuid)`);
+  }
+
+  for (const table of ownerUuidTables) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (owner_uuid = current_setting('app.user_id', true)::uuid)
+      with check (owner_uuid = current_setting('app.user_id', true)::uuid)
+    `);
+    console.log(`  rls  ${table} (owner_uuid)`);
   }
 
   for (const table of userIdTables) {
@@ -143,18 +186,16 @@ async function main() {
   await sql.unsafe(`
     create policy own_rows on messages
     using (
-      exists (
+      messages.user_uuid = current_setting('app.user_id', true)::uuid
+      or exists (
         select 1 from chats c
         where c.chat_uuid = messages.chat_uuid
           and c.user_uuid = current_setting('app.user_id', true)::uuid
       )
     )
     with check (
-      exists (
-        select 1 from chats c
-        where c.chat_uuid = messages.chat_uuid
-          and c.user_uuid = current_setting('app.user_id', true)::uuid
-      )
+      messages.user_uuid is null
+      or messages.user_uuid = current_setting('app.user_id', true)::uuid
     )
   `);
   console.log('  rls  messages (via chats)');
