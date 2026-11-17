@@ -74,7 +74,7 @@ The original frontend (678 files) was copied in as `ui/` and pointed at the new 
 | `ui/src/lib/local-storage.ts` | `@aws-amplify/storage` (`uploadData`, `getUrl`, `downloadData`, `remove`) |
 | `ui/amplify_outputs.json` (stub) | generated Amplify config |
 
-`POST /db` answers `{model, method, args}` from Postgres **inside `asUser()`**, so the bridge grants no extra reach. It serves 37 models, filters unknown AppSync-only columns, coerces ISO datetimes, and caches reads for 2s (invalidated on writes). Models with no registry entry (including the two owner-only tables) return an empty result, which is what keeps unmigrated screens rendering.
+`POST /db` answers `{model, method, args}` from Postgres **inside `asUser()`**, so the bridge grants no extra reach. It serves 27 models (the ten that only backed dropped features were removed), filters unknown AppSync-only columns, coerces ISO datetimes, and caches reads for 2s (invalidated on writes). Models with no registry entry (including the two owner-only tables) return an empty result, which is what keeps unmigrated screens rendering.
 
 ## 7. Document pipeline (local)
 
@@ -118,4 +118,5 @@ Out of scope by decision (2026-11-17), not by omission — see `docs/decisions.m
 - **Learning profile** — the two `/learningProfile*` routes do not exist; no mastery model
 - **SAT prep** — no `/satus*` product; the `satus` feature flag stays off
   (The dependent tables were still migrated, so the data is not lost; only the features are gone.
-  Cleanup pending: delete the screens from `ui/` and drop their `/db` registry entries.)
+  Cleanup is done: routes deleted (they 404), nav/entry points removed, and the ten
+  feature-only models dropped from the `/db` registry — see `docs/decisions.md`.)

@@ -39,7 +39,23 @@ reasons, which stubbed the learning-profile and knowledge-base routes and left t
 dashboard unable to load. Rather than rebuild an unowned mastery model, the rewrite drops
 the dependent surfaces. Practice tests are dropped for scope, not infrastructure.
 
-Cleanup that follows from this (not done yet): delete the `/satus*` and `/mock-exams*`
-screens from `ui/`, remove their entries from the `/db` bridge registry, and drop the
-nav/flag plumbing. Until then the screens still exist but lead to empty or redirecting
-states.
+### Cleanup, done 2026-11-17
+
+- **Routes deleted** (`ui/src/app`): `satus/`, `satus-onboarding/`, `mock-exams/`,
+  `sat-us-exam-bundle/`, `admin/mock-exam/`. They now 404, and the smoke run asserts it.
+- **Components/hooks deleted**: the SAT dashboard and onboarding, the mock-exam flow and
+  viewer, the learning-profile hooks, the practice-test question bank (`lib/data/sat-*`),
+  and the exam tabs in the chat panel (7 tabs, removed from `core-actions-tabs.tsx`).
+- **Entry points removed**: sidebar "Practice Tests" and "SAT" links, the home-page
+  "Try our Practice Tests" CTA, the free-SAT-exam path in pricing/onboarding/chat tool
+  cards, `mock-exams`/`satus` from flash-sale targeting, and the `satus-onboarding` guest
+  routes.
+- **Bridge registry**: `MockExam`, `MockExamLog`, `ExamPaper`, `ExamPaperQuestion`,
+  `ExtractedQuestion`, `QuestionExtractJob`, `QuestionGenerationJob`, `SATMiniExamLog`,
+  `FlashcardGame`, `UserLearningProfileHistory` no longer have a `/db` entry (27 models
+  left, from 37). The tables stay; the API stops serving them.
+- **Kept on purpose**: `/exam-bundles` is still the pricing page (the top-bar upgrade CTA
+  points at it) — only its "go to practice tests" copy is gone. `MockDocument` stays: it
+  is the seeded sample library, not a practice test. The admin screens for question
+  extraction/generation remain but are unreachable (the auth shim reports no `admin`
+  group) and their models are no longer served.

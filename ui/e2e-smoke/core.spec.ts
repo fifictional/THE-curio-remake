@@ -157,9 +157,6 @@ test('core screens against the migrated database', async ({ context, page }) => 
     { route: '/library', expectText: /library|document/i },
     { route: '/settings' },
     { route: '/profile' },
-    // `/satus*` and the learning profile are dropped features (docs/decisions.md),
-    // so they are not walked: they redirect or render empty on purpose.
-    { route: '/mock-exams' },
     { route: '/onboarding' },
   ];
   if (chats[0]) routes.push({ route: `/chats/${chats[0].chatUuid}` });
@@ -174,6 +171,13 @@ test('core screens against the migrated database', async ({ context, page }) => 
 
   for (const { route, expectText } of routes) {
     await visit(page, route, { expectText });
+  }
+
+  // Features dropped on 2026-11-17 must be gone from the URL space, not just
+  // hidden: a route that still renders would mean the cleanup missed a link.
+  for (const dropped of ['/satus', '/satus-onboarding', '/mock-exams', '/sat-us-exam-bundle']) {
+    const res = await context.request.get(dropped);
+    expect(res.status(), `${dropped} should be gone (docs/decisions.md)`).toBe(404);
   }
 
   console.log('\nscreen                                   /db rows  calls  chars');

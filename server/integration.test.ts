@@ -19,7 +19,7 @@ import { createApp } from './app';
 import type { HonoDataClient } from './data-client';
 import { ownerDb } from './db/owner-client';
 import { asUser } from './db/scope';
-import { chats, extractedQuestions, satMiniExamLogs, spaces, users } from './db/schema';
+import { chats, flashcardDecks, partnerships, spaces, users } from './db/schema';
 import { createPostgresDataClient } from './postgres-data';
 
 /**
@@ -196,27 +196,37 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
     expect(((await all.json()) as { messages: unknown[] }).messages).toHaveLength(3);
   });
 
-  it('serves the newly modelled tables through the bridge, RLS intact', async () => {
-    const logUuid = crypto.randomUUID();
-    const sharedQuestionUuid = `shared-${stamp}_m1_q1`;
+  it('does not serve the models behind dropped features', async () => {
+    // Practice tests / learning profile / SAT prep are out of scope
+    // (docs/decisions.md). The rows still exist; the bridge must not expose them.
+    const excluded = ['SATMiniExamLog', 'ExtractedQuestion', 'ExamPaper', 'MockExam'];
+    for (const model of excluded) {
+      const res = await app.request('/db', {
+        method: 'POST',
+        headers: as(userA.cookie),
+        body: JSON.stringify({ model, method: 'list' }),
+      });
+      const body = (await res.json()) as { data: unknown };
+      expect(body.data, model).toEqual([]);
+    }
+  });
+
+  it('serves a kept user-owned model through the bridge, RLS intact', async () => {
+    const deckUuid = crypto.randomUUID();
+    const partnershipUuid = crypto.randomUUID();
 
     await asUser(userA.userId, async (db) => {
-      await db.insert(satMiniExamLogs).values({
-        satMiniExamLogUuid: logUuid,
+      await db.insert(flashcardDecks).values({
+        flashcardDeckUuid: deckUuid,
         userUuid: userA.userId,
-        modules: [],
-        predictedSatScore: 1200,
+        title: 'integration deck',
       });
     });
-    // The question bank is shared content with no owner column.
-    await ownerDb.insert(extractedQuestions).values({
-      extractedQuestionUuid: sharedQuestionUuid,
-      moduleNumber: 1,
-      questionNumber: 1,
-      questionContent: 'shared question',
-      questionOptions: [],
-      exam: 'SAT',
-      module: 'Math',
+    // Public-read configuration: readable by everyone, writable by nobody.
+    await ownerDb.insert(partnerships).values({
+      partnershipUuid,
+      partnerName: 'Integration Partner',
+      partnerCode: `code-${stamp}`,
     });
 
     const bridge = (cookie: string, model: string, method: string, args?: object) =>
@@ -226,42 +236,38 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
         body: JSON.stringify({ model, method, args }),
       });
 
-    const own = (await (await bridge(userA.cookie, 'SATMiniExamLog', 'list')).json()) as {
-      data: Array<{ satMiniExamLogUuid: string }>;
+    const own = (await (await bridge(userA.cookie, 'FlashcardDeck', 'list')).json()) as {
+      data: Array<{ flashcardDeckUuid: string }>;
     };
-    expect(own.data.map((r) => r.satMiniExamLogUuid)).toContain(logUuid);
+    expect(own.data.map((r) => r.flashcardDeckUuid)).toContain(deckUuid);
 
-    const other = (await (await bridge(userB.cookie, 'SATMiniExamLog', 'list')).json()) as {
+    const other = (await (await bridge(userB.cookie, 'FlashcardDeck', 'list')).json()) as {
       data: unknown[];
     };
     expect(other.data).toHaveLength(0);
 
-    // Readable by everyone…
     for (const cookie of [userA.cookie, userB.cookie]) {
-      const seen = (await (await bridge(cookie, 'ExtractedQuestion', 'list')).json()) as {
-        data: Array<{ extractedQuestionUuid: string }>;
+      const seen = (await (await bridge(cookie, 'Partnership', 'list')).json()) as {
+        data: Array<{ partnershipUuid: string }>;
       };
-      expect(seen.data.map((r) => r.extractedQuestionUuid)).toContain(sharedQuestionUuid);
+      expect(seen.data.map((r) => r.partnershipUuid)).toContain(partnershipUuid);
     }
 
-    // …but writable only through the job that produced it, and this row has none.
     const attempted = (await (
-      await bridge(userB.cookie, 'ExtractedQuestion', 'update', {
-        extractedQuestionUuid: sharedQuestionUuid,
-        verified: true,
+      await bridge(userA.cookie, 'Partnership', 'update', {
+        partnershipUuid,
+        partnerName: 'defaced',
       })
     ).json()) as { data?: unknown };
     expect(attempted.data ?? null).toBeNull();
 
     const [row] = await ownerDb
       .select()
-      .from(extractedQuestions)
-      .where(eq(extractedQuestions.extractedQuestionUuid, sharedQuestionUuid));
-    expect(row.verified).toBeNull();
+      .from(partnerships)
+      .where(eq(partnerships.partnershipUuid, partnershipUuid));
+    expect(row.partnerName).toBe('Integration Partner');
 
-    await ownerDb
-      .delete(extractedQuestions)
-      .where(eq(extractedQuestions.extractedQuestionUuid, sharedQuestionUuid));
+    await ownerDb.delete(partnerships).where(eq(partnerships.partnershipUuid, partnershipUuid));
   });
 
   afterAll(async () => {

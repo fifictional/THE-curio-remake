@@ -6,7 +6,6 @@ import { BundleCard } from "@/components/exam-bundles/bundle-card";
 import { type Bundle } from "@/components/exam-bundles/types";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useFreeSATMockExam } from "@/hooks/api/mock-exams/use-free-sat-mock-exam.api";
 import { useAnalytics, useSessionContext } from '@/providers';
 import { usePaddlePrices } from "@/hooks/use-paddle-prices";
 import { useMemo, useCallback } from "react";
@@ -20,7 +19,6 @@ interface ModalBuyBundlesProps {
 
 export function ModalBuyBundles({ open, onOpenChange }: ModalBuyBundlesProps) {
   const router = useRouter();
-  const { getOrCreateFreeSATMockExam, isCreating } = useFreeSATMockExam();
   const { track } = useAnalytics();
   const { userProfile } = useSessionContext();
   
@@ -74,24 +72,6 @@ export function ModalBuyBundles({ open, onOpenChange }: ModalBuyBundlesProps) {
     return priceMap;
   }, [fetchedPrices, getSkuForPriceId]);
 
-  const handleFreeTrial = useCallback(async () => {
-    // Close modal
-    onOpenChange(false);
-
-    track('modal_buy_bundles_free_trial_clicked');
-    
-    // Get or create free SAT mock exam
-    const mockExamUuid = await getOrCreateFreeSATMockExam();
-    
-    if (mockExamUuid) {
-      // Navigate to the mock exam page
-      router.push(`/mock-exams/${mockExamUuid}`);
-    } else {
-      // If creation failed, fall back to practice tests page
-      router.push('/mock-exams');
-    }
-  }, [onOpenChange, track, getOrCreateFreeSATMockExam, router]);
-
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <VisuallyHidden>
@@ -106,10 +86,8 @@ export function ModalBuyBundles({ open, onOpenChange }: ModalBuyBundlesProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {oneTimeBundles.map((b: Bundle, i: number) => {
               const { key, ...rest } = b as any;
-              // Add onFreeTrial callback if the bundle has showFreeTrialButton
               const bundleProps = {
                 ...rest,
-                ...(rest.showFreeTrialButton && { onFreeTrial: handleFreeTrial }),
                 ...(fetchedPricesBySku && { fetchedPrices: fetchedPricesBySku }),
                 isPricesLoading,
                 showSkeleton: isPricesLoading || !userProfile,

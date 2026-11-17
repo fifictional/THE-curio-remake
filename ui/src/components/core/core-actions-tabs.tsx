@@ -23,13 +23,6 @@ import { emitter } from "@/hooks/use-events";
 import { Flashcard, QuizQuestion } from "@/lib/types";
 import { useAppSettingsApi } from "@/hooks/api/settings/use-app-settings.api";
 import { OnboardingChatAsTab } from "./as-tabs/onboarding-chat-as-tab";
-import { ExamChatAsTab } from "./as-tabs/exam-chat-as-tab";
-import { MockExamListAsTab } from "./as-tabs/mock-exam-list-as-tab";
-import { MockExamQuestionListAsTab } from "./as-tabs/mock-exam-question-list-as-tab";
-import { QuestionChatAsTab } from "./as-tabs/question-chat-as-tab";
-import { MockExamQuestionAsTab } from "./as-tabs/mock-exam-question-as-tab";
-import { SATQuestionChatAsTab } from "./as-tabs/sat-question-chat-as-tab";
-import { TakeExamAsTab } from "./as-tabs/take-exam-as-tab";
 
 interface CoreActionsTabsProps {
   features: Features[];
@@ -39,13 +32,6 @@ interface CoreActionsTabsProps {
 }
 
 const availableTabs = [
-  { value: 'practice-question', label: 'Test', icon: <ListCheck className="w-4 h-4" />, node: <MockExamQuestionAsTab /> },
-  { value: 'take-exam', label: 'Exam', icon: <ListCheck className="w-4 h-4" />, node: <TakeExamAsTab /> },
-  { value: 'exam-chat', label: 'Chat', icon: <MessageCircleMore className="w-4 h-4" />, node: <ExamChatAsTab /> },
-  { value: 'exam-list', label: 'Tests', icon: <ListCheck className="w-4 h-4" />, node: <MockExamListAsTab /> },
-  { value: 'question-list', label: 'Questions', icon: <QuestionsIcon className="w-4 h-4" />, node: <MockExamQuestionListAsTab /> },
-  { value: 'question-chat', label: 'Chat', icon: <MessageCircleMore className="w-4 h-4" />, node: <QuestionChatAsTab /> },
-  { value: 'sat-question-chat', label: 'Chat', icon: <MessageCircleMore className="w-4 h-4" />, node: <SATQuestionChatAsTab /> },
   { value: 'main-chat', label: 'Chat', icon: <MessageCircleMore className="w-4 h-4" />, node: <MainChatAsTab /> },
   { value: 'space-library', label: 'Library', icon: <Library className="w-4 h-4" />, node: <SpaceLibraryAsTab /> },
   { value: 'summary', label: 'Summary', icon: <FileMinus className="w-4 h-4" />, node: <DocumentSummaryAsTab /> },
@@ -58,7 +44,8 @@ const availableTabs = [
   { value: 'quiz', label: 'Quiz', icon: <QuizIcon className="w-4 h-4" />, node: <SpaceQuizAsTab /> },
 ]
 
-export type Features = 'document' | 'video' | 'summary' | 'chat' | 'flashcards' | 'quiz' | 'sources' | 'space-library' | 'main-chat' | 'onboarding-chat' | 'exam-chat' | 'exam-list' | 'question-list' | 'question-chat' | 'sat-question-chat' | 'practice-question' | 'take-exam';
+// Practice tests / SAT prep are dropped (docs/decisions.md), so the exam tabs are gone.
+export type Features = 'document' | 'video' | 'summary' | 'chat' | 'flashcards' | 'quiz' | 'sources' | 'space-library' | 'main-chat' | 'onboarding-chat';
 
 export function CoreActionsTabs({ features, loadingTabs, className, defaultTab }: CoreActionsTabsProps) {
   const { track } = useAnalytics();

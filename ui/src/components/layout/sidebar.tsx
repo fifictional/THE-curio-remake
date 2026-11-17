@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { useDocumentsByUserApi } from "@/hooks/api/documents";
 import { useChatsByUserApi } from "@/hooks/api/chats";
 import { useSpacesByUserApi, useSpacesSharedWithMeApi } from "@/hooks/api/spaces";
-import { useMockExamsByUserApi } from "@/hooks/api/mock-exams/use-mock-exams-by-user.api";
 import { useFlashSales } from "@/hooks/use-flash-sales";
 import { useMemo, useEffect, useState } from "react";
 import { useAmplifyApiClient } from "@/providers";
@@ -30,7 +29,6 @@ export function Sidebar() {
   const apiClient = useAmplifyApiClient();
   const { documents } = useDocumentsByUserApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 25, subscriptions: 'all', key: 'sidebar' } });
   const { chats } = useChatsByUserApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 25, key: 'sidebar', subscriptions: 'all' }, noDocumentOnly: true });
-  const { mockExams } = useMockExamsByUserApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 25, key: 'sidebar' } });
   const { spaces: userSpaces } = useSpacesByUserApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 1000, key: 'sidebar', subscriptions: 'all' } });
   const { spaces: sharedSpaces } = useSpacesSharedWithMeApi({ userUuid: userAttributes?.userUuid || null, options: { perPage: 1000, key: 'sidebar', subscriptions: 'all' } });
 
@@ -109,15 +107,6 @@ export function Sidebar() {
     });
   }, [userSpaces, sharedSpaces, spaceHasSharedMembers, userAttributes?.userUuid]);
 
-  const mappedMockExams: RecentElement[] = mockExams
-    .filter((mockExam) => !!mockExam)
-    .map((mockExam) => ({
-      type: 'mock-exam',
-      uuid: mockExam.mockExamUuid,
-      fileName: mockExam.title,
-      createdAt: mockExam.createdAt,
-    }));
-
   const mappedChats: RecentElement[] = chats.map((chat) => ({
     type: 'chat',
     uuid: chat.chatUuid,
@@ -133,7 +122,7 @@ export function Sidebar() {
     spaceUuid: document.spaceUuid || null,
   }));
 
-  const recentElements = [...mappedDocuments, ...mappedChats, ...mappedMockExams].sort((a, b) => new Date(b.createdAt || new Date()).getTime() - new Date(a.createdAt || new Date()).getTime());
+  const recentElements = [...mappedDocuments, ...mappedChats].sort((a, b) => new Date(b.createdAt || new Date()).getTime() - new Date(a.createdAt || new Date()).getTime());
 
   return (
     <aside onMouseOver={openSidebar} onMouseLeave={closeSidebar} className={cn("relative w-65 flex flex-col px-3 h-full transition-all duration-300", !isSidebarOpen && 'w-12 px-3')}>
@@ -215,14 +204,6 @@ const SidebarLinks = () => {
         <Gift className="w-5 h-5" />
         {isSidebarOpen && <span className="truncate">Gift Curio</span>}
       </Link> */}
-      <Link onClick={() => { track('sidebar-mock-exams-clicked'); closeSidebar(); }} href="/mock-exams" className={cn("flex gap-2 font-bold text-gray-600 hover:text-gray-900 transition-colors cursor-pointer truncate")}>
-        <BookOpenCheck className="w-5 h-5" />
-        {isSidebarOpen && <span className="truncate">Practice Tests</span>}
-      </Link>
-      {hasFeatureFlag('satus') && <Link onClick={() => { track('sidebar-satus-clicked'); closeSidebar(); }} href="/satus" className={cn("flex gap-2 font-bold text-gray-600 hover:text-gray-900 transition-colors cursor-pointer truncate")}>
-        <Target className="w-5 h-5" />
-        {isSidebarOpen && <span className="truncate">SAT</span>}
-      </Link>}
 
       <FeedbackModal
         src="https://docs.google.com/forms/d/e/1FAIpQLScx4u4uimLIbuWmCBll3i_n9dMZDk5ltlVRqFC6C8hRQT7V1Q/viewform?usp=dialog"

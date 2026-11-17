@@ -5,8 +5,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAmplifyApiClient, useAnalytics } from "@/providers";
 import { VoteToggle } from "@/components/ui/vote-toggle";
 import { MessageToolExtra } from "@/lib/types/message";
-import { CreateMockExamCard } from "./tools/create-mock-exam-card";
-import { MockExamToolArguments } from "@/lib/types/mock-exam";
 import { TypingIndicator } from "./typing-indicator";
 import { CreateFlashcardsCard } from "./tools/create-flashcards-card";
 import { CreateQuizCard } from "./tools/create-quiz-card";
@@ -242,14 +240,6 @@ export function MessageUI({
             <CurioMarkdown content={isAssistant ? renderedAssistantMessage : message} highlightRange={isAssistant ? highlightRange : undefined} />
           )}
           {/* handle tools here */}
-          {type === 'tool' && toolName === 'create_mock_exam' && (
-            <CreateMockExamCard
-              mockExam={JSON.parse(toolArguments)}
-              toolExtras={toolExtras}
-              chatUuid={chatUuid}
-              messageUuid={uuid}
-            />
-          )}
           {type === 'tool' && toolName === 'create_flashcard' && (
             <CreateFlashcardsCard 
               messageUuid={uuid} 

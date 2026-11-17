@@ -29,7 +29,7 @@ export function useFlashSales() {
       startDate: '2025-11-24T00:00:00.000Z',
       endDate: '2025-11-30T23:59:59.999Z',
       isActive: true,
-      pages: ['exam-bundles', 'library', 'mock-exams', 'spaces', 'chats', 'documents', 'satus'],
+      pages: ['exam-bundles', 'library', 'spaces', 'chats', 'documents'],
       bannerPages: ['home'],
       bannerBgImage: '/flash-sale/bf_25_desktop.jpg',
       barBgImage: '/flash-sale/bf_25_bar_desktop.jpg',
@@ -44,11 +44,8 @@ export function useFlashSales() {
   const currentPage = useMemo(() => {
     if (path === '/') return 'home';
     if (path.includes('/exam-bundles')) return 'exam-bundles';
-    if (path.includes('/sat-us-exam-bundle')) return 'sat-us-exam-bundle';
-    if (path.includes('/mock-exams')) return 'mock-exams';
     if (path.includes('/documents')) return 'documents';
     if (path.includes('/chats')) return 'chats';
-    if (path.includes('/satus') || path.includes('/satus-onboarding')) return 'satus';
     return 'home';
   }, [path]);
 

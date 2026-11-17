@@ -33,7 +33,6 @@ export function TopBar({ title, noUpgrade }: { title?: string, noUpgrade?: boole
   const isInSpacePage = path.includes('/spaces') && !path.includes('/chats') && !path.includes('/documents');
   const isInSubSpacePage = path.includes('/spaces');
   const isInCorePage = path.includes('/documents');
-  const isInMockExamsPage = path.includes('/mock-exams');
   const isInExamBundlesPage = path.includes('/exam-bundles');
 
   // Check access for documents/chats
@@ -115,8 +114,6 @@ export function TopBar({ title, noUpgrade }: { title?: string, noUpgrade?: boole
       utmSource = 'topbar-document';
     } else if (path.includes('/spaces')) {
       utmSource = 'topbar-space';
-    } else if (path.includes('/mock-exams')) {
-      utmSource = 'topbar-mockexam';
     } else if (path === '/') {
       utmSource = 'topbar-home';
     }

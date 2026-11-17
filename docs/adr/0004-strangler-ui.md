@@ -70,5 +70,6 @@ render an empty state instead of crashing.
 `ui/` is deleted when every screen in `web/` matches it. Track per-screen.
 
 Screens for the features dropped on 2026-11-17 (practice/mock tests, learning profile,
-SAT prep) do not need a `web/` equivalent — they get deleted rather than ported. See
-`docs/decisions.md`.
+SAT prep) do not need a `web/` equivalent — they were deleted rather than ported: five
+route groups, ~60 components/hooks, and the exam tabs in the chat panel. See
+`docs/decisions.md` for the full list.

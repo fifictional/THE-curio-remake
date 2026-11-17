@@ -78,19 +78,6 @@ export default function Home() {
             </AppearFadeSlide>
           </FadeSlideToggle>
 
-          <div className={cn("mt-6 flex justify-center", hideExtras ? 'hidden' : '')}>
-            <Button
-              size="sm"
-              onClick={() => {
-                track(hasFeatureFlag('satus') ? 'home_try_satus_clicked' : 'home_try_practice_tests_clicked');
-                router.push(hasFeatureFlag('satus') ? '/satus' : '/mock-exams');
-              }}
-              className="text-xs bg-gray-800 hover:bg-gray-600 text-gray-200 hover:text-gray-300 flex gap-2 cursor-pointer"
-            >
-              <BookOpenCheck className="w-4 h-4" />
-              Try our {hasFeatureFlag('satus') ? 'SAT Feature' : 'Practice Tests'}
-            </Button>
-          </div>
         </motion.div>
       </div>
       <FloatingNav />

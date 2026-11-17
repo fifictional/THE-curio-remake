@@ -15,7 +15,6 @@ import { useOwnedBundlesApi } from "@/hooks/api/bundles";
 import { useAmplifyApiClient } from "@/providers";
 import { useQuery } from "@tanstack/react-query";
 import { useCheckout, type CustomerData } from "@/hooks/use-checkout";
-import { useFreeSATMockExam } from "@/hooks/api/mock-exams/use-free-sat-mock-exam.api";
 import { useRouter } from "next/navigation";
 import { usePaddleCommon, useSKUUtils } from "@/hooks/use-paddle-common";
 import Image from "next/image";
@@ -35,7 +34,6 @@ export const Page4 = ({ variant, onFinish, onSkip }: PageFlowProps) => {
   const { userAttributes, isUserSubscribed, userProfile } = useSessionContext();
   const { getPriceIdForSku } = useSKUUtils();
   const { startCheckout, isLoading: isCheckoutLoading } = useCheckout(getPriceIdForSku);
-  const { getOrCreateFreeSATMockExam, isCreating: isCreatingFreeExam } = useFreeSATMockExam();
   const router = useRouter();
   const { getFlashSaleForPage } = useFlashSales();
   const flashSale = getFlashSaleForPage('exam-bundles');
@@ -140,32 +138,6 @@ export const Page4 = ({ variant, onFinish, onSkip }: PageFlowProps) => {
     track('onboarding_free_plan_selected', variant ? { variant } : undefined);
     onFinish();
   }, [track, onFinish, variant]);
-
-  // Handle free trial for SAT bundle
-  const handleFreeTrialClick = useCallback(async () => {
-    track('onboarding_free_trial_selected', variant ? { variant } : undefined);
-    
-    try {
-      // Create or get the free SAT mock exam
-      const mockExamUuid = await getOrCreateFreeSATMockExam();
-      
-      if (mockExamUuid) {
-        // Close onboarding modal
-        onFinish();
-        
-        // Navigate to the mock exam
-        router.push(`/mock-exams/${mockExamUuid}`);
-      } else {
-        console.error('Failed to create free SAT mock exam');
-        // Still close onboarding even if mock exam creation fails
-        onFinish();
-      }
-    } catch (error) {
-      console.error('Error in handleFreeTrialClick:', error);
-      // Still close onboarding even if there's an error
-      onFinish();
-    }
-  }, [track, onFinish, getOrCreateFreeSATMockExam, router, variant]);
 
   // Handle paid plan checkout with custom success URL
   const handlePaidPlanCheckout = useCallback(async (sku: string, discountCode?: string) => {

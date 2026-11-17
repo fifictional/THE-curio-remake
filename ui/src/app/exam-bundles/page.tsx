@@ -11,7 +11,6 @@ import { useOwnedBundlesApi } from "@/hooks/api/bundles";
 import { useAmplifyApiClient, useAnalytics, useCommonContext, useSessionContext } from "@/providers";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFreeSATMockExam } from "@/hooks/api/mock-exams/use-free-sat-mock-exam.api";
 import { usePaddleCommon } from "@/hooks/use-paddle-common";
 import Image from "next/image";
 import { useFlashSales } from "@/hooks/use-flash-sales";
@@ -24,7 +23,6 @@ export default function ExamBundlesPage() {
   const p = searchParams.get("p");
   const client = useAmplifyApiClient();
   const { track } = useAnalytics();
-  const { getOrCreateFreeSATMockExam, isCreating } = useFreeSATMockExam();
   // get flash sale and redirect to the flash sale page if it exists
   const { getFlashSaleForPage } = useFlashSales();
   const flashSale = getFlashSaleForPage('exam-bundles');
@@ -103,22 +101,6 @@ export default function ExamBundlesPage() {
     }));
   }, [ownedSkus, superCuriobundles]);
 
-  // Handler for free trial button
-  const handleFreeTrial = useCallback(async () => {
-    // Get or create free SAT mock exam
-    const mockExamUuid = await getOrCreateFreeSATMockExam();
-
-    track('exam_bundles_page_free_trial_clicked');
-
-    if (mockExamUuid) {
-      // Navigate to the mock exam page
-      router.push(`/mock-exams/${mockExamUuid}`);
-    } else {
-      // If creation failed, fall back to practice tests page
-      router.push('/mock-exams');
-    }
-  }, [getOrCreateFreeSATMockExam, track, router]);
-
   // Show thank you page when p === 'SATUS-001'
   if (p === "SATUS-001") {
     return (
@@ -137,18 +119,8 @@ export default function ExamBundlesPage() {
               </p>
             </div>
 
-            <div className="space-y-4 pt-6">
-              <p className="text-base text-gray-700">
-                Head over to our Practice Tests feature to start using your new questions and ace your exams!
-              </p>
-
-              <Link
-                href="/mock-exams"
-                className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-              >
-                Go to Practice Tests
-              </Link>
-            </div>
+            {/* Practice Tests are not part of this implementation (docs/decisions.md),
+                so the post-purchase CTA that pointed at them is gone. */}
           </motion.div>
         </div>
       </main>
@@ -266,7 +238,6 @@ export default function ExamBundlesPage() {
                     const bundleProps: BundleCardProps = {
                       ...b,
                       billingPeriod: period as 'monthly' | '6_months' | 'annually',
-                      ...(b.showFreeTrialButton && { onFreeTrial: handleFreeTrial }),
                       ...(activeDiscountCode && { discountCode: activeDiscountCode }),
                       ...(fetchedPricesBySku && { fetchedPrices: fetchedPricesBySku }),
                       isPricesLoading,
@@ -294,7 +265,6 @@ export default function ExamBundlesPage() {
                     const bundleProps: BundleCardProps = {
                       ...b,
                       billingPeriod: period as 'monthly' | '6_months' | 'annually',
-                      ...(b.showFreeTrialButton && { onFreeTrial: handleFreeTrial }),
                       ...(activeDiscountCode && { discountCode: activeDiscountCode }),
                       ...(fetchedPricesBySku && { fetchedPrices: fetchedPricesBySku }),
                       isPricesLoading,
@@ -322,9 +292,6 @@ export default function ExamBundlesPage() {
               <Image src="/uni-logos.png" alt="University Logos" width={1000} height={100} />
             </div>
 
-            {/* <div className="mt-6 rounded-md p-3 text-sm text-gray-700 text-center">
-              Questions included in each bundle can be used in our <a href="/mock-exams" className="underline">Practice Tests</a> feature.
-            </div> */}
           </>
         )}
 

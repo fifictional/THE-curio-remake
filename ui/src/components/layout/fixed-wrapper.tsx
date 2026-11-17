@@ -25,8 +25,8 @@ interface FixedWrapperProps {
   children: React.ReactNode;
 }
 
-const guestRoutes = ['/companion/upload', '/signin', '/signup', '/onboarding', '/satus-onboarding', '/partner', '/gifting', '/one-dollar', '/reset'];
-const guestOnlyRoutes = ['/satus-onboarding', '/partner', '/gifting', '/one-dollar'];
+const guestRoutes = ['/companion/upload', '/signin', '/signup', '/onboarding', '/partner', '/gifting', '/one-dollar', '/reset'];
+const guestOnlyRoutes = ['/partner', '/gifting', '/one-dollar'];
 const signedInRoutesWithNoSidebar = ['/welcome'];
 
 const MIN_RIGHT_PANEL_WIDTH = 480;
