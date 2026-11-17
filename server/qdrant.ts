@@ -199,3 +199,23 @@ export async function deleteDocumentChunks(userUuid: string, documentUuid: strin
     throw new Error(`Qdrant delete failed (${res.status})`);
   }
 }
+
+/**
+ * Remove every vector belonging to one user, from both collections.
+ *
+ * Called when an account is deleted: a deleted user must not leave retrievable
+ * text behind. Missing collections are fine (nothing was ever indexed).
+ */
+export async function deleteUserVectors(userUuid: string): Promise<void> {
+  for (const collection of [COLLECTION, DOC_COLLECTION]) {
+    const res = await req(`/collections/${collection}/points/delete?wait=true`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filter: { must: [{ key: 'userUuid', match: { value: userUuid } }] },
+      }),
+    });
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`Qdrant delete failed (${res.status})`);
+    }
+  }
+}

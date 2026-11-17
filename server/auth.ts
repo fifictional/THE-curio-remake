@@ -12,6 +12,9 @@
 
 import 'dotenv/config';
 
+import { appendFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
@@ -34,6 +37,23 @@ export const auth = betterAuth({
     enabled: true,
     // v0 runs locally; no email verification loop.
     requireEmailVerification: false,
+    /*
+     * The mailer seam. Sending real email needs a provider decision, so the link
+     * is written to `.local/reset-links.log` (and stdout) instead of being
+     * silently dropped. Swapping this one function for Resend/SES/Postmark is
+     * the whole integration.
+     */
+    sendResetPassword: async ({ user, url, token }) => {
+      const target = process.env.RESET_LINKS_FILE ?? '.local/reset-links.log';
+      const line = `[${new Date().toISOString()}] ${user.email} ${url} token=${token}\n`;
+      console.log(`\n[auth] password reset for ${user.email}: ${url}\n`);
+      try {
+        await mkdir(dirname(target), { recursive: true });
+        await appendFile(target, line, 'utf8');
+      } catch (err) {
+        console.warn('[auth] could not write the reset log:', (err as Error).message);
+      }
+    },
   },
   advanced: {
     database: {

@@ -21,6 +21,7 @@ import { handleDbRequest, modelCount } from './routes/db';
 import { deleteFile, downloadFile, uploadFile } from './routes/files';
 import { createDocument, createDocumentValidate } from './routes/documents';
 import { limits } from './middleware/rate-limit';
+import { deleteAccount, exportAccount } from './routes/account';
 import type { HonoEnv } from './types';
 
 export interface AppOptions {
@@ -152,6 +153,9 @@ export function createApp(opts: AppOptions = {}) {
   // The bridge: generic data endpoint for the original (legacy) UI.
   app.post('/db', handleDbRequest);
   app.get('/db/health', (c) => c.json({ ok: true, models: modelCount }));
+
+  app.get('/account/export', exportAccount);
+  app.delete('/account', limits.account, deleteAccount);
 
   const rag = createRagRoutes();
   app.get('/rag/search', limits.ragSearch, rag.search);

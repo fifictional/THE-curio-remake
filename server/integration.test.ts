@@ -12,14 +12,27 @@
  *   npm run db:up && npm run db:migrate && npm run db:rls && npm test
  */
 
-import { eq } from 'drizzle-orm';
+import { readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { count as sqlCount, eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createApp } from './app';
 import type { HonoDataClient } from './data-client';
 import { ownerDb } from './db/owner-client';
 import { asUser } from './db/scope';
-import { chatCitations, chats, documents, flashcardDecks, partnerships, spaces, users } from './db/schema';
+import {
+  chatCitations,
+  chats,
+  documents,
+  flashcardDecks,
+  messages,
+  partnerships,
+  spaces,
+  users,
+} from './db/schema';
 import { indexDocumentText, searchDocumentText } from './document-index';
 import { createPostgresDataClient } from './postgres-data';
 
@@ -43,6 +56,10 @@ async function databaseIsReachable(): Promise<boolean> {
 }
 
 const suite = (await databaseIsReachable()) ? describe : describe.skip;
+
+// The suite makes more auth calls than a human would; the limiter has its own
+// unit tests, so keep it out of the way here.
+process.env.RATE_LIMIT_DISABLED = '1';
 
 const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const emailA = `a-${stamp}@curio.test`;
@@ -297,6 +314,49 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
     expect(question.map((hit) => hit.documentUuid)).toContain(documentUuid);
   });
 
+  it('resets a password through the mailer seam', async () => {
+    const logFile = join(tmpdir(), `curio-reset-${stamp}.log`);
+    process.env.RESET_LINKS_FILE = logFile;
+
+    try {
+      const request = await app.request('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: emailA, redirectTo: '/reset' }),
+      });
+      expect(request.status).toBe(200);
+
+      const logged = await readFile(logFile, 'utf8');
+      const token = /token=(\S+)/.exec(logged)?.[1];
+      expect(token, 'the reset link must be written somewhere').toBeTruthy();
+
+      const reset = await app.request('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ newPassword: 'reset-password-123', token }),
+      });
+      expect(reset.status).toBe(200);
+
+      const signIn = await app.request('/api/auth/sign-in/email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: emailA, password: 'reset-password-123' }),
+      });
+      expect(signIn.status).toBe(200);
+
+      // The old password no longer works.
+      const old = await app.request('/api/auth/sign-in/email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: emailA, password }),
+      });
+      expect(old.status).toBe(401);
+    } finally {
+      delete process.env.RESET_LINKS_FILE;
+      await rm(logFile, { force: true });
+    }
+  });
+
   it('enforces isolation in Postgres itself (RLS, not just the route)', async () => {
     const seenByB = await asUser(userB.userId, (db) => db.select().from(chats));
     expect(seenByB.find((c) => c.chatUuid === chatUuid)).toBeUndefined();
@@ -422,6 +482,67 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
     expect(row.partnerName).toBe('Integration Partner');
 
     await ownerDb.delete(partnerships).where(eq(partnerships.partnershipUuid, partnershipUuid));
+  });
+
+  it('exports and then deletes an account completely', async () => {
+    // A throwaway user: deletion is the thing under test, not the shared fixture.
+    const emailC = `c-${stamp}@curio.test`;
+    const userC = await signUp(emailC);
+    const chatC = crypto.randomUUID();
+
+    await asUser(userC.userId, async (db) => {
+      await db.insert(chats).values({ chatUuid: chatC, userUuid: userC.userId, name: 'export me' });
+      await db.insert(messages).values({
+        messageUuid: crypto.randomUUID(),
+        chatUuid: chatC,
+        role: 'user',
+        content: 'exported message',
+      });
+      await db.insert(documents).values({
+        documentUuid: crypto.randomUUID(),
+        userUuid: userC.userId,
+        key: `student-documents/${userC.userId}/export/file.pdf`,
+        fileName: 'export.pdf',
+        type: 'application/pdf',
+      });
+    });
+
+    const exported = await app.request('/account/export', { headers: as(userC.cookie) });
+    expect(exported.status).toBe(200);
+    const dump = (await exported.json()) as {
+      profile: { email: string };
+      chats: Array<{ name: string }>;
+      messages: Array<{ content: string }>;
+      documents: Array<{ fileName: string }>;
+    };
+    expect(dump.profile.email).toBe(emailC);
+    expect(dump.chats.map((c) => c.name)).toContain('export me');
+    expect(dump.messages.map((m) => m.content)).toContain('exported message');
+    expect(dump.documents.map((d) => d.fileName)).toContain('export.pdf');
+
+    // A wrong confirmation must not delete anything.
+    const wrong = await app.request('/account', {
+      method: 'DELETE',
+      headers: as(userC.cookie),
+      body: JSON.stringify({ confirmEmail: 'someone-else@curio.test' }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const deleted = await app.request('/account', {
+      method: 'DELETE',
+      headers: as(userC.cookie),
+      body: JSON.stringify({ confirmEmail: emailC }),
+    });
+    expect(deleted.status).toBe(200);
+
+    // Session gone, rows gone.
+    const after = await app.request('/me', { headers: as(userC.cookie) });
+    expect(after.status).toBe(401);
+    const [{ n }] = await ownerDb
+      .select({ n: sqlCount() })
+      .from(users)
+      .where(eq(users.email, emailC));
+    expect(Number(n)).toBe(0);
   });
 
   afterAll(async () => {

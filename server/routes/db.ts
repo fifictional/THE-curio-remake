@@ -152,8 +152,9 @@ const REGISTRY: Record<string, ModelDef> = {
   AppSettings: { table: appSettings as never, pk: 'appSettingsUuid', timestamps: ['updatedAt'] },
 };
 
-/** Number of models the bridge serves, used by /db/health. */
-export const modelCount = Object.keys(REGISTRY).length;
+/** The models the bridge serves. Pinned by `server/db-registry.test.ts`. */
+export const registryModels = Object.keys(REGISTRY).sort();
+export const modelCount = registryModels.length;
 
 interface DbRequest {
   model: string;

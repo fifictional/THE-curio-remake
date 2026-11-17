@@ -102,4 +102,6 @@ export const limits = {
   ragReindex: rateLimit({ name: 'ragReindex', windowMs: 60_000, max: 20 }),
   /** Uploads write to disk. */
   upload: rateLimit({ name: 'upload', windowMs: 60_000, max: 30 }),
+  /** Destructive and irreversible: a handful of attempts is plenty. */
+  account: rateLimit({ name: 'account', windowMs: 60_000, max: 5 }),
 };

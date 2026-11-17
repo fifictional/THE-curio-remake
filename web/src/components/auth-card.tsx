@@ -64,6 +64,9 @@ export function AuthCard() {
       <p className="mt-4 text-xs text-focus-text">
         Seeded login: local@curio.test / localpassword123
       </p>
+      <a href="/forgot" className="mt-2 inline-block text-xs underline">
+        Forgot password?
+      </a>
     </div>
   );
 }

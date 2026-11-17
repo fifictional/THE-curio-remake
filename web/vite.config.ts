@@ -21,6 +21,7 @@ export default defineConfig({
         '/rag',
         '/files',
         '/db',
+        '/account',
         '/log',
       ].map((path) => [path, 'http://localhost:3101']),
     ),

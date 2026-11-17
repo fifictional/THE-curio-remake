@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
 import { Route as SpacesSpaceIdRouteImport } from './routes/spaces.$spaceId'
@@ -20,9 +22,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotRoute = ForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetRoute = ResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -43,14 +55,18 @@ const SpacesSpaceIdRoute = SpacesSpaceIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
@@ -58,7 +74,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
@@ -67,21 +85,27 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot'
     | '/library'
+    | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
     | '/spaces/$spaceId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot'
     | '/library'
+    | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
     | '/spaces/$spaceId'
   id:
     | '__root__'
     | '/'
+    | '/forgot'
     | '/library'
+    | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
     | '/spaces/$spaceId'
@@ -89,7 +113,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ForgotRoute: typeof ForgotRoute
   LibraryRoute: typeof LibraryRoute
+  ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
   SpacesSpaceIdRoute: typeof SpacesSpaceIdRoute
@@ -104,11 +130,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot': {
+      id: '/forgot'
+      path: '/forgot'
+      fullPath: '/forgot'
+      preLoaderRoute: typeof ForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset': {
+      id: '/reset'
+      path: '/reset'
+      fullPath: '/reset'
+      preLoaderRoute: typeof ResetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -137,7 +177,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ForgotRoute: ForgotRoute,
   LibraryRoute: LibraryRoute,
+  ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
   SpacesSpaceIdRoute: SpacesSpaceIdRoute,
