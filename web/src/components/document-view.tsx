@@ -2,21 +2,102 @@ import { Link } from '@tanstack/react-router';
 
 import { Markdown } from '../lib/markdown';
 import { AuthCard } from './auth-card';
-import type { DocumentRow, DocumentSummaryRow, SessionUser } from '../types';
+import type {
+  DocumentRow,
+  DocumentSummaryRow,
+  FlashcardRow,
+  QuizRow,
+  SessionUser,
+} from '../types';
 import { Shell } from './shell';
 
 function fileUrl(key: string) {
   return `/files?key=${encodeURIComponent(key)}`;
 }
 
+function StudyMaterial({
+  flashcards,
+  quizzes,
+}: {
+  flashcards: FlashcardRow[];
+  quizzes: QuizRow[];
+}) {
+  return (
+    <section className="mt-4 rounded-2xl border border-chat-panel-border bg-chat-panel p-5">
+      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-headers">
+        Study material
+      </h2>
+      <p className="mb-4 text-xs text-headers">
+        Read-only: generating new cards and quizzes is not part of this build.
+      </p>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Flashcards {flashcards.length ? `(${flashcards.length})` : ''}
+          </h3>
+          <div className="mt-2 space-y-2">
+            {flashcards.slice(0, 20).map((card) => (
+              <details
+                key={card.flashcardUuid}
+                className="rounded-lg border border-black/5 bg-white px-3 py-2"
+              >
+                <summary className="cursor-pointer text-sm text-foreground">
+                  {card.title || 'Card'}
+                </summary>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-paragraphs">
+                  {card.content}
+                </p>
+              </details>
+            ))}
+            {flashcards.length === 0 && (
+              <p className="text-sm text-headers">No flashcards saved for this document.</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Quizzes {quizzes.length ? `(${quizzes.length})` : ''}
+          </h3>
+          <div className="mt-2 space-y-2">
+            {quizzes.map((quiz) => (
+              <div
+                key={quiz.quizUuid}
+                className="rounded-lg border border-black/5 bg-white px-3 py-2"
+              >
+                <p className="text-sm text-foreground">{quiz.title || 'Untitled quiz'}</p>
+                <p className="text-xs text-headers">
+                  {quiz.questionCount ?? 0} question{(quiz.questionCount ?? 0) === 1 ? '' : 's'}
+                  {quiz.difficulty ? ` · ${quiz.difficulty}` : ''}
+                  {quiz.lastScore != null && quiz.lastTotal != null
+                    ? ` · last score ${quiz.lastScore}/${quiz.lastTotal}`
+                    : ''}
+                </p>
+              </div>
+            ))}
+            {quizzes.length === 0 && (
+              <p className="text-sm text-headers">No quizzes saved for this document.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function DocumentView({
   user,
   document,
   summary,
+  flashcards,
+  quizzes,
 }: {
   user: SessionUser | null;
   document: DocumentRow | null;
   summary: DocumentSummaryRow | null;
+  flashcards: FlashcardRow[];
+  quizzes: QuizRow[];
 }) {
   if (!user) {
     return (
@@ -91,6 +172,8 @@ export function DocumentView({
           </p>
         )}
       </section>
+
+      <StudyMaterial flashcards={flashcards} quizzes={quizzes} />
     </Shell>
   );
 }

@@ -332,6 +332,12 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
       const shaped = Array.isArray(data) ? data : data;
       return c.json({ data: shaped });
     } catch (err) {
+      // A malformed uuid (a stale link, a typo) is a client error, not a 500.
+      // Postgres reports it as 22P02 / invalid_text_representation.
+      const code = (err as { code?: string }).code;
+      if (code === '22P02') {
+        return c.json({ data: null, errors: [{ message: 'Invalid identifier' }] }, 400);
+      }
       return c.json({ data: null, errors: [{ message: (err as Error).message }] }, 200);
     }
   });

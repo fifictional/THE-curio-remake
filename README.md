@@ -137,12 +137,20 @@ Screens: **chat**, **library** (`/library` — search, real documents, upload) a
 **document** (`/documents/<uuid>` — metadata, "open file", rendered summary). All
 three are server-rendered and gated by the session card.
 
-The Vite dev proxy lists every API path (`/api`, `/me`, `/messages`, `/aiChat`,
-`/moveChat`, `/rag`, `/files`, `/documents`, `/db`, `/log`) — a missing entry is a
-404 from Vite, not from the API, which is how the first upload attempt failed.
+Screens so far: **chat** (`/?chat=<uuid>` deep-links a conversation), **library**,
+**document** (summary + read-only study material), **spaces** (`/spaces/<id>`) and
+**settings**.
 
-Still missing in `web/`: flashcards/quiz tabs, the spaces screens, and full parity
-with `ui/` per ADR 0004.
+Two proxy/route traps, both already paid for: the Vite dev proxy must list every API
+path (a missing entry is a 404 from Vite, not the API), but it must **not** cover
+paths that are also app routes — `/documents/<uuid>` is a screen, so the browser
+creates documents through `/api/documents` (same handler on the server). And the
+`/db` bridge reports errors in-band (`{data, errors}`), so the server fetchers
+honour that instead of throwing: a stale link renders "not found", not a 500.
+
+Still missing in `web/`: generating flashcards/quizzes (the chat tools that produce
+them are not ported), transcription/YouTube flows, and full parity with `ui/` per
+ADR 0004.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 

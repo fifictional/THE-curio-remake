@@ -133,6 +133,9 @@ export function createApp(opts: AppOptions = {}) {
   app.get('/files', downloadFile);
   app.delete('/files', deleteFile);
   app.post('/documents', createDocumentValidate, createDocument);
+  // Same handler under the API prefix: the new UI's own routes include
+  // `/documents/<uuid>`, so its dev proxy cannot forward that prefix wholesale.
+  app.post('/api/documents', createDocumentValidate, createDocument);
 
   // The bridge: generic data endpoint for the original (legacy) UI.
   app.post('/db', handleDbRequest);

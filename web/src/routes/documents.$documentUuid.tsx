@@ -10,5 +10,13 @@ export const Route = createFileRoute('/documents/$documentUuid')({
 
 function DocumentPage() {
   const data = Route.useLoaderData();
-  return <DocumentView user={data.user} document={data.document} summary={data.summary} />;
+  return (
+    <DocumentView
+      user={data.user}
+      document={data.document}
+      summary={data.summary}
+      flashcards={data.flashcards}
+      quizzes={data.quizzes}
+    />
+  );
 }

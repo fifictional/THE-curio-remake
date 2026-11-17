@@ -48,3 +48,21 @@ export interface ProfileRow {
   userDescription?: string | null;
   createdAt?: string | null;
 }
+
+export interface FlashcardRow {
+  flashcardUuid: string;
+  title?: string | null;
+  content?: string | null;
+  createdAt?: string | null;
+}
+
+export interface QuizRow {
+  quizUuid: string;
+  title?: string | null;
+  description?: string | null;
+  difficulty?: string | null;
+  questionCount?: number | null;
+  lastScore?: number | null;
+  lastTotal?: number | null;
+  createdAt?: string | null;
+}

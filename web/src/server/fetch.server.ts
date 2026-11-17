@@ -19,6 +19,16 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T |
 
   // Signed out, or a chat this user cannot see: both are normal, not errors.
   if (res.status === 401 || res.status === 404) return null;
+
+  const body = (await res.json().catch(() => null)) as unknown;
+
+  /*
+   * The `/db` bridge reports errors in-band (`{data, errors}`) — including a bad
+   * identifier, which Postgres surfaces as a 500. Honour that convention instead
+   * of throwing: a stale link should render "not found", not an error page.
+   */
+  if (body && typeof body === 'object' && 'data' in body) return body as T;
+
   if (!res.ok) throw new Error(`${path} failed (${res.status})`);
-  return (await res.json()) as T;
+  return body as T;
 }

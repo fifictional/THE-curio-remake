@@ -25,7 +25,9 @@ function useUploadDocument(userSub: string | null) {
       });
       if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
 
-      const created = await fetch('/documents', {
+      // `/api/documents` rather than `/documents`: the latter prefix also holds
+      // this app's own document pages, so the dev proxy must not swallow it.
+      const created = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

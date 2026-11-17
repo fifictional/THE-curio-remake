@@ -11,12 +11,18 @@ import type {
   Chat,
   DocumentRow,
   DocumentSummaryRow,
+  FlashcardRow,
   Message,
+  QuizRow,
   ProfileRow,
   SessionUser,
   SpaceRow,
 } from '../types';
 import { apiFetch } from './fetch.server';
+
+/** A malformed id in the URL is a "not found", not a 500. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (value: string | undefined): value is string => !!value && UUID.test(value);
 
 export interface ChatPageData {
   user: SessionUser | null;
@@ -36,7 +42,9 @@ export const loadChatPage = createServerFn({ method: 'GET' })
     });
 
     // A deep link wins; otherwise the most recent conversation.
-    const chatUuid = data.chatUuid ?? chats?.data?.[0]?.chatUuid ?? null;
+    const chatUuid: string | null = isUuid(data.chatUuid)
+      ? data.chatUuid
+      : (chats?.data?.[0]?.chatUuid ?? null);
     const messages = chatUuid
       ? ((await apiFetch<{ messages: Message[] }>(
           `/messages?chat=${encodeURIComponent(chatUuid)}`,
@@ -59,6 +67,9 @@ export const loadSpace = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<SpacePageData> => {
     const session = await apiFetch<{ user: SessionUser }>('/me');
     if (!session?.user) return { user: null, space: null, chats: [], documents: [] };
+    if (!isUuid(data.spaceId)) {
+      return { user: session.user, space: null, chats: [], documents: [] };
+    }
 
     const space = await apiFetch<{ data: SpaceRow | null }>('/db', {
       method: 'POST',
@@ -139,13 +150,20 @@ export interface DocumentPageData {
   user: SessionUser | null;
   document: DocumentRow | null;
   summary: DocumentSummaryRow | null;
+  flashcards: FlashcardRow[];
+  quizzes: QuizRow[];
 }
 
 export const loadDocument = createServerFn({ method: 'GET' })
   .validator((data: { documentUuid: string }) => data)
   .handler(async ({ data }): Promise<DocumentPageData> => {
     const session = await apiFetch<{ user: SessionUser }>('/me');
-    if (!session?.user) return { user: null, document: null, summary: null };
+    if (!session?.user) {
+      return { user: null, document: null, summary: null, flashcards: [], quizzes: [] };
+    }
+    if (!isUuid(data.documentUuid)) {
+      return { user: session.user, document: null, summary: null, flashcards: [], quizzes: [] };
+    }
 
     const document = await apiFetch<{ data: DocumentRow | null }>('/db', {
       method: 'POST',
@@ -156,7 +174,9 @@ export const loadDocument = createServerFn({ method: 'GET' })
       }),
     });
 
-    if (!document?.data) return { user: session.user, document: null, summary: null };
+    if (!document?.data) {
+      return { user: session.user, document: null, summary: null, flashcards: [], quizzes: [] };
+    }
 
     // RLS scopes this to the caller's documents; the bridge sorts newest first.
     const summaries = await apiFetch<{ data: DocumentSummaryRow[] }>('/db', {
@@ -169,10 +189,35 @@ export const loadDocument = createServerFn({ method: 'GET' })
       }),
     });
 
+    // Read-only study material that already exists for this document. Generation
+    // is not part of this build (the chat tools that produced it are not ported).
+    const [flashcards, quizzes] = await Promise.all([
+      apiFetch<{ data: FlashcardRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Flashcard',
+          method: 'listFlashcardByDocumentUuidAndCreatedAt',
+          args: { documentUuid: data.documentUuid },
+          options: { limit: 200 },
+        }),
+      }),
+      apiFetch<{ data: QuizRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Quiz',
+          method: 'listQuizBySourceUuidAndCreatedAt',
+          args: { sourceUuid: data.documentUuid },
+          options: { limit: 50 },
+        }),
+      }),
+    ]);
+
     return {
       user: session.user,
       document: document.data,
       summary: summaries?.data?.[0] ?? null,
+      flashcards: flashcards?.data ?? [],
+      quizzes: quizzes?.data ?? [],
     };
   });
 

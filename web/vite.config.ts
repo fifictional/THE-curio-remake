@@ -7,8 +7,10 @@ export default defineConfig({
   plugins: [tailwindcss(), tanstackStart(), viteReact()],
   server: {
     port: 5173,
-    // Everything the API owns. Keep in sync with server/app.ts routes:
-    // a missing entry is a 404 from the Vite server, not from the API.
+    // Everything the API owns. Keep in sync with server/app.ts routes: a missing
+    // entry is a 404 from the Vite server, not from the API. Prefixes that are
+    // also app routes (`/documents/<uuid>`) are deliberately absent — the app
+    // creates documents through `/api/documents` instead.
     proxy: Object.fromEntries(
       [
         '/api',
@@ -18,7 +20,6 @@ export default defineConfig({
         '/moveChat',
         '/rag',
         '/files',
-        '/documents',
         '/db',
         '/log',
       ].map((path) => [path, 'http://localhost:3101']),
