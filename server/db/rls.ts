@@ -32,23 +32,11 @@ const tables = [
   'quizzes',
   'quiz_questions',
   'quiz_attempts',
-  'mock_exams',
   'flashcard_decks',
-  'sat_mini_exam_logs',
-  'flashcard_games',
-  'datalab_requests',
-  'exam_papers',
-  'question_extract_jobs',
-  'question_generation_jobs',
-  'user_learning_profile_history',
 ] as const;
 
 /** Tables whose ownership comes from their document, not their own column. */
-const documentOwned = [
-  'document_summaries',
-  'document_sections',
-  'document_vision_outputs',
-] as const;
+const documentOwned = ['document_summaries'] as const;
 
 /**
  * Tables that key ownership on `owner_uuid` (the memory feature uses it as the
@@ -62,21 +50,12 @@ const chatOwned = ['chat_citations'] as const;
 /** Tables that key ownership on `user_id` rather than `user_uuid`. */
 const userIdTables = ['purchases', 'curio_subscriptions', 'receipts'] as const;
 
-/** Tables that hang off another row. */
-const viaParent: Array<{ table: string; parent: string; fk: string; parentPk: string }> = [
-  {
-    table: 'mock_exam_logs',
-    parent: 'mock_exams',
-    fk: 'mock_exam_uuid',
-    parentPk: 'mock_exam_uuid',
-  },
-  {
-    table: 'exam_paper_questions',
-    parent: 'exam_papers',
-    fk: 'exam_paper_uuid',
-    parentPk: 'exam_paper_uuid',
-  },
-];
+/**
+ * Tables that hang off another row. Empty right now: the two that used it
+ * (`mock_exam_logs`, `exam_paper_questions`) belong to dropped features and are
+ * owner-only below. Kept as the documented pattern for the next one.
+ */
+const viaParent: Array<{ table: string; parent: string; fk: string; parentPk: string }> = [];
 
 /**
  * Configuration and seed content: readable by any signed-in caller, writable by
@@ -100,7 +79,28 @@ const publicRead = [
  * internal job state. RLS on with no policy means only the owner role (the
  * importer, the local pipeline) can touch them.
  */
-const ownerOnly = ['future_users', 'batch_processes'] as const;
+const ownerOnly = [
+  // PII we have no role model for, and internal job state.
+  'future_users',
+  'batch_processes',
+  // Dropped features (practice tests, learning profile, SAT prep). The data is
+  // migrated and kept, but no product code reads it — so the app role gets
+  // nothing. Re-enabling a feature means restoring its policy here, on purpose.
+  'extracted_questions',
+  'exam_papers',
+  'exam_paper_questions',
+  'mock_exams',
+  'mock_exam_logs',
+  'sat_mini_exam_logs',
+  'flashcard_games',
+  'question_extract_jobs',
+  'question_generation_jobs',
+  'user_learning_profile_history',
+  // Pipeline output: written by the worker as the owner, never read by the app.
+  'document_sections',
+  'document_vision_outputs',
+  'datalab_requests',
+] as const;
 
 async function main() {
   // A superuser bypasses RLS even with FORCE. The application must therefore
@@ -303,50 +303,12 @@ async function main() {
   for (const table of ownerOnly) {
     await sql.unsafe(`alter table ${table} enable row level security`);
     await sql.unsafe(`alter table ${table} force row level security`);
+    // Whatever it had before stops applying: no policy means no app access.
     await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`drop policy if exists read_all on ${table}`);
+    await sql.unsafe(`drop policy if exists write_own on ${table}`);
     console.log(`  rls  ${table} (no policy: owner only)`);
   }
-
-  /*
-   * The extracted-question bank is shared content, not user data: every signed-in
-   * user reads it (SAT mini exams sample from it), but a write must come from the
-   * job that produced the row — which is itself owner-scoped.
-   */
-  await sql.unsafe('alter table extracted_questions enable row level security');
-  await sql.unsafe('alter table extracted_questions force row level security');
-  await sql.unsafe('drop policy if exists read_all on extracted_questions');
-  await sql.unsafe('drop policy if exists write_own on extracted_questions');
-  await sql.unsafe(
-    'create policy read_all on extracted_questions for select using (true)',
-  );
-  await sql.unsafe(`
-    create policy write_own on extracted_questions for all
-    using (
-      exists (
-        select 1 from question_extract_jobs j
-        where j.question_extract_job_uuid = extracted_questions.question_extract_job_uuid
-          and j.user_uuid = current_setting('app.user_id', true)::uuid
-      )
-      or exists (
-        select 1 from question_generation_jobs j
-        where j.question_generation_job_uuid = extracted_questions.question_generation_job_uuid
-          and j.user_uuid = current_setting('app.user_id', true)::uuid
-      )
-    )
-    with check (
-      exists (
-        select 1 from question_extract_jobs j
-        where j.question_extract_job_uuid = extracted_questions.question_extract_job_uuid
-          and j.user_uuid = current_setting('app.user_id', true)::uuid
-      )
-      or exists (
-        select 1 from question_generation_jobs j
-        where j.question_generation_job_uuid = extracted_questions.question_generation_job_uuid
-          and j.user_uuid = current_setting('app.user_id', true)::uuid
-      )
-    )
-  `);
-  console.log('  rls  extracted_questions (read: all, write: via job)');
 
   console.log('\nrow-level security applied');
 }

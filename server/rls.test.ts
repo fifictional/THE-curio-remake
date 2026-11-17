@@ -28,10 +28,29 @@ const AUTH_TABLES = ['users', 'sessions', 'accounts', 'verifications'];
 /** Importer bookkeeping, not user data and never reachable by the app. */
 const OPS_TABLES = ['import_quarantine'];
 /**
- * RLS on, deliberately no policy: PII we have no role model for, and internal
- * job state. Only the owner (importer, local pipeline) can touch them.
+ * RLS on, deliberately no policy: only the owner role (importer, worker) can
+ * read or write. Covers PII without a role model, internal job state, and the
+ * tables whose features were dropped (docs/decisions.md).
  */
-const OWNER_ONLY_TABLES = ['future_users', 'batch_processes'];
+const OWNER_ONLY_TABLES = [
+  'future_users',
+  'batch_processes',
+  // Dropped features: data kept, no product code reads it.
+  'extracted_questions',
+  'exam_papers',
+  'exam_paper_questions',
+  'mock_exams',
+  'mock_exam_logs',
+  'sat_mini_exam_logs',
+  'flashcard_games',
+  'question_extract_jobs',
+  'question_generation_jobs',
+  'user_learning_profile_history',
+  // Pipeline output written by the worker, never read by the app.
+  'document_sections',
+  'document_vision_outputs',
+  'datalab_requests',
+];
 /** Read-only for any signed-in caller. */
 const PUBLIC_READ_TABLES = [
   'partnerships',
@@ -42,7 +61,7 @@ const PUBLIC_READ_TABLES = [
   'youtube_videos',
 ];
 /** Shared content: readable by all, writable only through the owning job. */
-const READ_ALL_TABLES = ['extracted_questions'];
+const READ_ALL_TABLES: string[] = [];
 
 const EXEMPT = new Set([...AUTH_TABLES, ...OPS_TABLES]);
 
