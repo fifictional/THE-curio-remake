@@ -84,7 +84,7 @@ upload → /files (disk) → /documents (Document + Task PENDING)
       → task COMPLETED/FAILED
 ```
 
-Verified end to end: upload → task `COMPLETED 100` → summary row → visible in the Library through the real UI. PDFs are not parsed yet (text files only) — that is where Datalab or a JS PDF parser would slot in.
+Verified end to end: upload → task `COMPLETED 100` → summary row → visible in the Library through the real UI. **PDFs are parsed** via their text layer (`server/pdf.ts`, pdf.js through `unpdf`: no key, no service, no native build). A 285 KB policy PDF migrated from S3 produced a summary containing its real text. Scans with no text layer still yield nothing — that, and Datalab's page/bbox layout, is the remaining gap.
 
 ## 8. Tests + CI
 
@@ -106,7 +106,7 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 - **No deployment**, no AWS resources created, no CI secrets configured
 - **No production data migration** — dev is migrated (13,673 rows, 299 objects); release is
   blocked on the decisions in `docs/migration-runbook.md` §5
-- **PDF parsing / real document intelligence**
+- **OCR for scanned PDFs, and Datalab-style layout/bbox extraction**
 - **Payments (Paddle)** and tier enforcement
 - **Chat citations / RAG in the UI** — backend endpoints exist, the UI does not call them
 - **Realtime push** — replaced by 4s polling on the open chat

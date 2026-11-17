@@ -147,6 +147,27 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
     expect(move.status).toBe(404);
   });
 
+  it('refuses to create a document for someone else\'s object key', async () => {
+    const foreignKey = `student-documents/${userB.userId}/stolen/file.pdf`;
+    const res = await app.request('/documents', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ originalKey: foreignKey, fileName: 'x.pdf', type: 'pdf' }),
+    });
+    expect(res.status).toBe(404);
+
+    const own = await app.request('/documents', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({
+        originalKey: `student-documents/${userA.userId}/own/file.pdf`,
+        fileName: 'own.pdf',
+        type: 'pdf',
+      }),
+    });
+    expect(own.status).toBe(200);
+  });
+
   it('enforces isolation in Postgres itself (RLS, not just the route)', async () => {
     const seenByB = await asUser(userB.userId, (db) => db.select().from(chats));
     expect(seenByB.find((c) => c.chatUuid === chatUuid)).toBeUndefined();

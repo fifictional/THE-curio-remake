@@ -7,15 +7,16 @@
  * pipeline is a plain function.
  *
  * This is the *shape* of that pipeline, not the pipeline: it extracts text from
- * the uploaded file, and either asks OpenAI for a summary (when a key is
- * present) or records a placeholder. Summaries, flashcards and quizzes can be
- * layered on without changing the trigger.
+ * the uploaded file (the PDF text layer via `server/pdf.ts`; Datalab's layout AI
+ * is not replaced), and either asks OpenAI for a summary (when a key is present)
+ * or records a placeholder. Summaries, flashcards and quizzes can be layered on
+ * without changing the trigger.
  */
 
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { Context } from 'hono';
 import { z } from 'zod';
 
@@ -23,9 +24,11 @@ import { chat, hasAiKey } from '../ai';
 import { ownerDb } from '../db/owner-client';
 import { documentSummaries, documents, spaces, tasks } from '../db/schema';
 import { getValidatedBody, validateBody } from '../middleware/validate';
+import { extractPdfText, looksLikePdf, MAX_TEXT_CHARS } from '../pdf';
 import type { HonoEnv } from '../types';
 
-const FILES_ROOT = process.env.FILES_DIR ?? '.local/files';
+/** Read per call, not at import: tests point it at a temp directory. */
+const filesRoot = () => process.env.FILES_DIR ?? '.local/files';
 
 const CreateDocumentArgs = z.object({
   documentUuid: z.string().uuid().optional(),
@@ -47,6 +50,17 @@ export async function createDocument(c: Context<HonoEnv>): Promise<Response> {
 
   const input = getValidatedBody<typeof CreateDocumentArgs>(c);
   const documentUuid = input.documentUuid ?? crypto.randomUUID();
+
+  /*
+   * The key is what /files authorises against, so accepting any string here
+   * would let a caller mint a document row for someone else's object and then
+   * read it: `ownsKey` trusts a documents row the caller owns. Same prefix rule
+   * as files.ts — the owner is in the path.
+   */
+  const owned = `student-documents/${identity.sub}/`;
+  if (!input.originalKey.startsWith(owned) && !input.originalKey.startsWith('yt-transcripts/')) {
+    return c.json({ success: false, error: 'Not found' }, 404);
+  }
 
   // Ownership of the target folder, if one was given.
   let spaceUuid: string | null = input.spaceUuid ?? null;
@@ -88,18 +102,29 @@ export async function createDocument(c: Context<HonoEnv>): Promise<Response> {
   return c.json({ success: true, document, task });
 }
 
-/** Read up to a slice of a text-ish file; PDFs are recorded as unreadable. */
-async function extractText(key: string): Promise<string | null> {
-  const path = normalize(join(FILES_ROOT, key.replace(/^\/+/, '')));
-  if (!path.startsWith(normalize(FILES_ROOT))) return null;
+/**
+ * Text of the stored object, whatever it is.
+ *
+ * PDFs go through the text-layer extractor; anything that is not text (images,
+ * office documents) is reported as unreadable rather than summarised from
+ * mojibake. `null` is a normal answer, not an error.
+ */
+export async function extractText(key: string): Promise<string | null> {
+  const root = filesRoot();
+  const path = normalize(join(root, key.replace(/^\/+/, '')));
+  if (!path.startsWith(normalize(root))) return null;
+
   try {
     const buffer = await readFile(path);
+
+    if (looksLikePdf(buffer)) return extractPdfText(buffer);
+
     if (buffer.byteLength > 2_000_000) return null;
     const text = buffer.toString('utf8');
-    // Heuristic: rejail noise ratio (binary/PDF) -> treat as not text.
+    // Heuristic: reject binary files by their printable-character ratio.
     const printable = text.replace(/[^\x09\x0a\x0d\x20-\x7e]/g, '');
     if (printable.length < text.length * 0.9) return null;
-    return text.slice(0, 8000);
+    return text.slice(0, MAX_TEXT_CHARS);
   } catch {
     return null;
   }
@@ -112,10 +137,13 @@ const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 5000);
  * Runs as the owner connection because it acts on behalf of no single request.
  */
 export async function processPendingTasksOnce(): Promise<{ processed: number }> {
+  // Only document-bearing work. A migrated CHAT task has no document and used
+  // to fill the batch forever: it was skipped and left PENDING, so the same
+  // three rows were claimed on every pass.
   const pending = await ownerDb
     .select()
     .from(tasks)
-    .where(inArray(tasks.status, ['PENDING']))
+    .where(and(inArray(tasks.status, ['PENDING']), isNotNull(tasks.documentUuid)))
     .limit(5);
 
   let processed = 0;

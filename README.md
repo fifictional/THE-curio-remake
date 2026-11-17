@@ -66,6 +66,10 @@ npm run dev          # http://localhost:3101
 
 The page at `/` lists real rows and lets you move the chat between spaces.
 
+Uploading a document runs the local pipeline: `.local/files` → Document + Task →
+polling worker → text extraction → summary. PDFs are read from their text layer
+(`server/pdf.ts`); scans have no text layer and need OCR/Datalab.
+
 Seeded ids: chat `44444444-4444-4444-8444-444444444444`, spaces `2222…` (Biology) and `3333…` (Chemistry).
 
 ## Auth
