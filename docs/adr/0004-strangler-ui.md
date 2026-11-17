@@ -46,8 +46,9 @@ Two further patches are **bug fixes found by running the app**, not shims:
 
 The TanStack replacement's noted blocker is gone: `web/` is server-rendered and its
 loader forwards the session cookie to the API (`web/src/server/`), so the first
-paint is the real conversation rather than an empty shell. Per-screen parity is
-still the open work.
+paint is the real conversation rather than an empty shell. It also renders markdown
++ KaTeX, and the message layout matches the original (student bubble right, tutor
+text left). Per-screen parity is still the open work.
 
 `ui/` also carries a Playwright smoke test (`npm run smoke`, config in
 `ui/playwright.smoke.config.ts`): it walks the migrated screens against the real

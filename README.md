@@ -128,8 +128,13 @@ so the first paint is the real conversation — no `ssr: false`, no "checking
 session" flash. Signed out, the server renders the sign-in card. The dev server
 still proxies the API so browser fetches stay same-origin.
 
-What `web/` does not have yet: the markdown renderer (messages show `**bold**`
-literally), the document/library screens, and parity with `ui/` per ADR 0004.
+Messages render **markdown and maths** (`web/src/lib/markdown.tsx`): react-markdown
++ GFM + raw HTML, and KaTeX for `$…$` / `$$…$$` after normalising the model's
+`\(…\)` / `\[…\]` delimiters. KaTeX instead of MathJax on purpose — MathJax v3
+needs every typeset call serialised, which was a real bug on the `ui/` side.
+
+Still missing in `web/`: the document/library screens, and parity with `ui/` per
+ADR 0004.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 

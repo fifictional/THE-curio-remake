@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { Markdown } from '../lib/markdown';
 import type { Message, SessionUser } from '../types';
 import {
   DEFAULT_CHAT,
@@ -149,26 +150,33 @@ function Chat({
           <p className="text-sm text-headers">No messages in this chat yet.</p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {messages.data?.map((m) => {
             const isUser = m.role === 'user';
-            return (
-              <div key={m.messageUuid} className={isUser ? 'flex justify-end' : 'flex justify-start'}>
-                <div
-                  className={[
-                    'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
-                    isUser
-                      ? 'bg-active border border-curio-green/20 text-foreground'
-                      : 'bg-white border border-chat-panel-border text-card-foreground',
-                  ].join(' ')}
-                >
-                  {m.content}
-                  <div className="mt-1 text-[10px] uppercase tracking-wide text-headers">
-                    {new Date(m.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+            const time = new Date(m.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+
+            // Legacy shape: the student's turn is a bubble on the right, the
+            // tutor's turn is plain full-width text on the left.
+            if (isUser) {
+              return (
+                <div key={m.messageUuid} className="flex flex-col items-end">
+                  <div className="mr-2 mb-2 text-sm font-bold text-headers">You</div>
+                  <div className="max-w-[80%] rounded-3xl rounded-br-none bg-neutral-500 px-4 py-2 text-white">
+                    <Markdown content={m.content} />
+                    <div className="mt-1 text-[10px] text-white/70">{time}</div>
                   </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={m.messageUuid} className="flex flex-col items-start">
+                <div className="w-full">
+                  <Markdown content={m.content} />
+                  <div className="mt-1 text-[10px] text-headers">{time}</div>
                 </div>
               </div>
             );
