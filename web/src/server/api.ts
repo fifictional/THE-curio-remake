@@ -12,6 +12,7 @@ import type {
   DocumentRow,
   DocumentSummaryRow,
   Message,
+  ProfileRow,
   SessionUser,
   SpaceRow,
 } from '../types';
@@ -119,3 +120,26 @@ export const loadDocument = createServerFn({ method: 'GET' })
       summary: summaries?.data?.[0] ?? null,
     };
   });
+
+export interface SettingsData {
+  user: SessionUser | null;
+  profile: ProfileRow | null;
+}
+
+export const loadSettings = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<SettingsData> => {
+    const session = await apiFetch<{ user: SessionUser }>('/me');
+    if (!session?.user) return { user: null, profile: null };
+
+    const profile = await apiFetch<{ data: ProfileRow | null }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'UserProfile',
+        method: 'get',
+        args: { id: session.user.sub },
+      }),
+    });
+
+    return { user: session.user, profile: profile?.data ?? null };
+  },
+);

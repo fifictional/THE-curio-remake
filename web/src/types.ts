@@ -39,3 +39,12 @@ export interface SpaceRow {
   spaceUuid: string;
   name?: string | null;
 }
+
+export interface ProfileRow {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  country?: string | null;
+  userDescription?: string | null;
+  createdAt?: string | null;
+}

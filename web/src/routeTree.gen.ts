@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentsDocumentUuidRoute = DocumentsDocumentUuidRouteImport.update({
   id: '/documents/$documentUuid',
   path: '/documents/$documentUuid',
@@ -32,30 +38,34 @@ const DocumentsDocumentUuidRoute = DocumentsDocumentUuidRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
+  '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
+  '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
+  '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/library' | '/documents/$documentUuid'
+  fullPaths: '/' | '/library' | '/settings' | '/documents/$documentUuid'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/library' | '/documents/$documentUuid'
-  id: '__root__' | '/' | '/library' | '/documents/$documentUuid'
+  to: '/' | '/library' | '/settings' | '/documents/$documentUuid'
+  id: '__root__' | '/' | '/library' | '/settings' | '/documents/$documentUuid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LibraryRoute: typeof LibraryRoute
+  SettingsRoute: typeof SettingsRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/documents/$documentUuid': {
       id: '/documents/$documentUuid'
       path: '/documents/$documentUuid'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LibraryRoute: LibraryRoute,
+  SettingsRoute: SettingsRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
 }
 export const routeTree = rootRouteImport

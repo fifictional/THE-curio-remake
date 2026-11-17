@@ -41,6 +41,13 @@ export function Shell({
             >
               Library
             </Link>
+            <Link
+              to="/settings"
+              activeProps={{ className: 'text-foreground font-medium' }}
+              className="hover:text-foreground"
+            >
+              Settings
+            </Link>
           </nav>
         </div>
         {user?.email && <span className="text-xs text-headers">{user.email}</span>}
