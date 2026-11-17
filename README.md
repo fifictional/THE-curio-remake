@@ -15,7 +15,7 @@ npm test
 ## Tests
 
 ```bash
-npm test          # 5 unit + 7 integration (integration skips without a DB)
+npm test          # 21 tests (integration skips without a DB)
 npm run qdrant:smoke
 ```
 
@@ -38,6 +38,8 @@ service containers.
 - `ui/` is the original frontend (strangler); `web/` is the TanStack Start
   replacement, chat screen only.
 - `docs/adr/` — 0001 data layer, 0002 data model + migration, 0003 ERD, 0004 strangler UI.
+- **Out of scope (2026-11-17):** practice/mock tests, learning profile, SAT prep.
+  Their tables are migrated but the features are not built — see `docs/decisions.md`.
 
 ## Decisions
 
@@ -122,7 +124,7 @@ npm run smoke
 ```
 
 It prints a table per screen (`/db` rows fetched, response size) plus a list of
-expected 404s from features that are not migrated yet (`/learningProfileQuery`),
+expected 404s from features we have decided to drop (e.g. `/learningProfileQuery`),
 so a real regression is not hidden among them.
 
 ## Qdrant

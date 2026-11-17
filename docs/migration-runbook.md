@@ -189,6 +189,14 @@ returns an empty result for them, exactly as it did before they had tables, unti
 product has a role model. 12 `exam_papers` and 4 `datalab_requests` come from the export
 as orphans (their document was deleted) — preserved, and reported in `orphans.json`.
 
+**Data vs feature.** Some of these tables back features that were dropped on 2026-11-17
+(practice tests, learning profile, SAT prep): `mock_exams`, `mock_exam_logs`,
+`sat_mini_exam_logs`, `flashcard_games`, `user_learning_profile_history`, `exam_papers`,
+`exam_paper_questions`, `extracted_questions`, `question_extract_jobs`,
+`question_generation_jobs`, `document_sections`. They are imported for fidelity — the
+data is not lost — but no product code reads or writes them. Do not treat a production
+run for them as optional: skipping them is a decision to lose history.
+
 ## 5. Production, when the decisions are made
 
 Blocked on: `DocumentVisionOutput` include/exclude, password strategy, staging database,

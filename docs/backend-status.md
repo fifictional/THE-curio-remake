@@ -99,9 +99,9 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 - `docs/adr/0002-data-model-and-migration.md` — inventory of the 44 Dynamo models + the migration plan (export → transform → load → verify)
 - `docs/adr/0003-database-erd.md` — ER diagrams generated from the old schema
 - `docs/adr/0004-strangler-ui.md` — why the original UI runs unchanged, and the exit criteria
-- `docs/decisions.md` — the agreed choices (DB, auth, REST, polling, Qdrant, local files, chat-only v0)
+- `docs/decisions.md` — the agreed choices (DB, auth, REST, polling, Qdrant, local files, scope) and the three features dropped on 2026-11-17
 
-## 10. What is explicitly NOT done
+## 10. What is explicitly NOT done / out of scope
 
 - **No deployment**, no AWS resources created, no CI secrets configured
 - **No production data migration** — dev is migrated (13,673 rows, 299 objects); release is
@@ -111,3 +111,11 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 - **Chat citations / RAG in the UI** — backend endpoints exist, the UI does not call them
 - **Realtime push** — replaced by 4s polling on the open chat
 - **Open-source prep** — `users.json` (30 MB of real user records) and `debug.txt` are still in the old repo's git history and must be purged before anything goes public
+
+Out of scope by decision (2026-11-17), not by omission — see `docs/decisions.md`:
+
+- **Practice / mock tests** — no generation pipeline; migrated `mock_exams` rows are not a supported surface
+- **Learning profile** — the two `/learningProfile*` routes do not exist; no mastery model
+- **SAT prep** — no `/satus*` product; the `satus` feature flag stays off
+  (The dependent tables were still migrated, so the data is not lost; only the features are gone.
+  Cleanup pending: delete the screens from `ui/` and drop their `/db` registry entries.)

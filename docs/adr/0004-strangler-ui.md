@@ -68,3 +68,7 @@ render an empty state instead of crashing.
 ## Exit criteria
 
 `ui/` is deleted when every screen in `web/` matches it. Track per-screen.
+
+Screens for the features dropped on 2026-11-17 (practice/mock tests, learning profile,
+SAT prep) do not need a `web/` equivalent — they get deleted rather than ported. See
+`docs/decisions.md`.

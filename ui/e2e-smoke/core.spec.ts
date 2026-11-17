@@ -157,8 +157,9 @@ test('core screens against the migrated database', async ({ context, page }) => 
     { route: '/library', expectText: /library|document/i },
     { route: '/settings' },
     { route: '/profile' },
+    // `/satus*` and the learning profile are dropped features (docs/decisions.md),
+    // so they are not walked: they redirect or render empty on purpose.
     { route: '/mock-exams' },
-    { route: '/satus' },
     { route: '/onboarding' },
   ];
   if (chats[0]) routes.push({ route: `/chats/${chats[0].chatUuid}` });
@@ -183,7 +184,7 @@ test('core screens against the migrated database', async ({ context, page }) => 
   }
 
   if (notes.length) {
-    console.log(`\n${notes.length} expected gap(s) (404 from an unmigrated endpoint):`);
+    console.log(`\n${notes.length} expected gap(s) (404 from a dropped feature):`);
     for (const note of notes) console.log(`  ${note}`);
   }
 
