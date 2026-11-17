@@ -90,7 +90,18 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 
 ## 8. Tests + CI
 
-- **13 automated tests**: 5 unit (ported route over HTTP with a fake client) + 8 integration against real Postgres + real Better Auth (two users, owner access, cross-user denial, RLS at the DB layer, aiChat persistence).
+- **41 automated tests**: unit (ported routes, chunking, citation helpers, PDF dispatch),
+  integration against real Postgres + Better Auth (two users, owner access, cross-user
+  denial, RLS at the DB layer, aiChat persistence and citations), and a dedicated
+  **RLS audit suite** (`server/rls.test.ts`).
+- The audit suite makes the policy design assertable: every `public` table is either user
+  data with RLS enabled + forced, or on a documented exemption list (the four auth tables
+  and `import_quarantine`); every RLS table has a policy except the two owner-only ones;
+  `curio_app` is not a superuser, cannot bypass RLS and owns nothing; the world-readable
+  set is exactly the three catalogues + shared video rows + the question bank. It already
+  caught five tables with no policy at all (`bundles`, `exam_modules`, `youtube_videos`,
+  `metadata`, `document_vision_outputs`) — `metadata` needed a target-derived policy
+  because it is polymorphic (`target_type`/`target_uuid`).
 - Integration suite self-skips when no database is reachable, so `npm test` stays green anywhere.
 - GitHub Actions: Postgres + Qdrant service containers → migrate → RLS → typecheck → tests → Qdrant smoke; separate job builds the UI.
 - Strict `tsc --noEmit` clean in both packages.

@@ -15,7 +15,7 @@ npm test
 ## Tests
 
 ```bash
-npm test          # 21 tests (integration skips without a DB)
+npm test          # 41 tests (integration skips without a DB)
 npm run qdrant:smoke
 ```
 
@@ -29,7 +29,8 @@ service containers.
 ## State
 
 - `server/` — Hono API on plain Node, real routes ported from the old repo.
-- Postgres: **all 44 DynamoDB models have a table**, RLS on 37 of them.
+- Postgres: **all 44 DynamoDB models have a table**, RLS enabled + forced on 43 of them,
+  and an audit suite (`server/rls.test.ts`) fails if a new table is added without a policy.
 - Auth: Better Auth, session cookie; imported Cognito users attach a local
   password with `npm run migrate:adopt`.
 - Dev data is migrated: 13,673 rows across 29 non-empty tables, 299 storage

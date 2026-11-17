@@ -44,7 +44,11 @@ const tables = [
 ] as const;
 
 /** Tables whose ownership comes from their document, not their own column. */
-const documentOwned = ['document_summaries', 'document_sections'] as const;
+const documentOwned = [
+  'document_summaries',
+  'document_sections',
+  'document_vision_outputs',
+] as const;
 
 /**
  * Tables that key ownership on `owner_uuid` (the memory feature uses it as the
@@ -80,7 +84,16 @@ const viaParent: Array<{ table: string; parent: string; fk: string; parentPk: st
  * (`AppSettings` has 21 rows in dev because nothing stopped the old UI creating
  * one per session; the bridge reads the newest.)
  */
-const publicRead = ['partnerships', 'app_settings', 'mock_documents'] as const;
+const publicRead = [
+  'partnerships',
+  'app_settings',
+  'mock_documents',
+  // Pricing catalogue and shared video content: no owner column exists, and the
+  // rows are the same for everyone.
+  'bundles',
+  'exam_modules',
+  'youtube_videos',
+] as const;
 
 /**
  * Not reachable by the app at all: PII we have no role model for yet, and
@@ -232,6 +245,52 @@ async function main() {
     )
   `);
   console.log('  rls  messages (via chats)');
+
+  /*
+   * `metadata` is polymorphic: a key/value row pointing at a user, chat or
+   * document by text id. Ownership therefore has to be derived from the target,
+   * and the comparison stays textual so a malformed id cannot fail the cast and
+   * return true/false by accident.
+   */
+  await sql.unsafe('alter table metadata enable row level security');
+  await sql.unsafe('alter table metadata force row level security');
+  await sql.unsafe('drop policy if exists own_rows on metadata');
+  await sql.unsafe(`
+    create policy own_rows on metadata
+    using (
+      (target_type = 'user'
+        and target_uuid = current_setting('app.user_id', true))
+      or (target_type = 'chat'
+        and exists (
+          select 1 from chats c
+          where c.chat_uuid::text = metadata.target_uuid
+            and c.user_uuid = current_setting('app.user_id', true)::uuid
+        ))
+      or (target_type = 'document'
+        and exists (
+          select 1 from documents d
+          where d.document_uuid::text = metadata.target_uuid
+            and d.user_uuid = current_setting('app.user_id', true)::uuid
+        ))
+    )
+    with check (
+      (target_type = 'user'
+        and target_uuid = current_setting('app.user_id', true))
+      or (target_type = 'chat'
+        and exists (
+          select 1 from chats c
+          where c.chat_uuid::text = metadata.target_uuid
+            and c.user_uuid = current_setting('app.user_id', true)::uuid
+        ))
+      or (target_type = 'document'
+        and exists (
+          select 1 from documents d
+          where d.document_uuid::text = metadata.target_uuid
+            and d.user_uuid = current_setting('app.user_id', true)::uuid
+        ))
+    )
+  `);
+  console.log('  rls  metadata (via target)');
 
   for (const table of publicRead) {
     await sql.unsafe(`alter table ${table} enable row level security`);
