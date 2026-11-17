@@ -20,6 +20,7 @@ import { createRagRoutes } from './routes/rag';
 import { handleDbRequest, modelCount } from './routes/db';
 import { deleteFile, downloadFile, uploadFile } from './routes/files';
 import { createDocument, createDocumentValidate } from './routes/documents';
+import { limits } from './middleware/rate-limit';
 import type { HonoEnv } from './types';
 
 export interface AppOptions {
@@ -77,6 +78,17 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ success: false, error: err.message }, 500);
   });
 
+  // Password guessing is the one auth risk we can throttle without touching the
+  // auth library: cap the credential endpoints per IP, leave session reads alone.
+  for (const path of [
+    '/api/auth/sign-in/email',
+    '/api/auth/sign-up/email',
+    '/api/auth/request-password-reset',
+    '/api/auth/reset-password',
+  ]) {
+    app.use(path, limits.auth);
+  }
+
   // Better Auth endpoints: /api/auth/sign-up/email, /sign-in/email, /sign-out, /get-session
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
@@ -126,10 +138,10 @@ export function createApp(opts: AppOptions = {}) {
   app.post('/moveChat', moveChat.validate, moveChat.handler);
 
   const aiChat = createAiChatRoute(opts.aiChat);
-  app.post('/aiChat', aiChat.validate, aiChat.handler);
+  app.post('/aiChat', limits.aiChat, aiChat.validate, aiChat.handler);
 
   // Local object storage + document creation (the S3 + pipeline replacement).
-  app.post('/files', uploadFile);
+  app.post('/files', limits.upload, uploadFile);
   app.get('/files', downloadFile);
   app.delete('/files', deleteFile);
   app.post('/documents', createDocumentValidate, createDocument);
@@ -142,8 +154,8 @@ export function createApp(opts: AppOptions = {}) {
   app.get('/db/health', (c) => c.json({ ok: true, models: modelCount }));
 
   const rag = createRagRoutes();
-  app.get('/rag/search', rag.search);
-  app.post('/rag/reindex', rag.reindex);
+  app.get('/rag/search', limits.ragSearch, rag.search);
+  app.post('/rag/reindex', limits.ragReindex, rag.reindex);
 
   return { app, calls };
 }
