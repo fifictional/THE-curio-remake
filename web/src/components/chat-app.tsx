@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import type { Message, SessionUser } from '../types';
 import {
   DEFAULT_CHAT,
   useAiChat,
@@ -86,12 +88,18 @@ function AuthCard() {
   );
 }
 
-function Chat() {
-  const [chatUuid, setChatUuid] = useState(DEFAULT_CHAT);
+function Chat({
+  initialChatUuid,
+  initialMessages,
+}: {
+  initialChatUuid: string | null;
+  initialMessages: Message[];
+}) {
+  const [chatUuid, setChatUuid] = useState(initialChatUuid ?? DEFAULT_CHAT);
   const [draft, setDraft] = useState('');
   const [question, setQuestion] = useState('');
 
-  const messages = useMessages(chatUuid);
+  const messages = useMessages(chatUuid, chatUuid === initialChatUuid ? initialMessages : undefined);
   const aiChat = useAiChat(chatUuid);
   const rag = useRagSearch(chatUuid);
   const signOut = useSignOut();
@@ -111,11 +119,14 @@ function Chat() {
           <span className="text-xs text-headers">chat</span>
         </div>
         <div className="flex items-center gap-2">
-          <input
-            value={chatUuid}
-            onChange={(e) => setChatUuid(e.target.value)}
-            className="w-56 rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 font-mono text-[11px] text-paragraphs"
-          />
+          {import.meta.env.DEV && (
+            <input
+              value={chatUuid}
+              onChange={(e) => setChatUuid(e.target.value)}
+              title="chat uuid (dev only)"
+              className="w-56 rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 font-mono text-[11px] text-paragraphs"
+            />
+          )}
           <button
             onClick={() => messages.refetch()}
             className="rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 text-xs text-paragraphs"
@@ -196,13 +207,13 @@ function Chat() {
 
       <details className="mt-4 rounded-xl border border-chat-panel-border bg-chat-panel px-4 py-3">
         <summary className="cursor-pointer text-xs uppercase tracking-wide text-headers">
-          Search this chat (Qdrant)
+          Search sources (documents + chat)
         </summary>
         <div className="mt-3 flex items-center gap-2">
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Semantic search…"
+            placeholder="Search your documents…"
             className="flex-1 rounded-lg border border-chat-panel-border bg-white px-3 py-2 text-sm"
           />
           <button
@@ -227,10 +238,23 @@ function Chat() {
   );
 }
 
-export default function App() {
-  const me = useMe();
+/**
+ * `initial` is the SSR loader's data: session, first chat and its messages. The
+ * page is correct before any client JavaScript runs.
+ */
+export default function App({
+  initial,
+}: {
+  initial: { user: SessionUser | null; chatUuid: string | null; messages: Message[] };
+}) {
+  const me = useMe(initial.user);
+
   if (me.isLoading) {
     return <p className="p-10 text-sm text-headers">Checking session…</p>;
   }
-  return me.data?.authenticated ? <Chat /> : <AuthCard />;
+  if (!me.data?.authenticated) return <AuthCard />;
+
+  return (
+    <Chat initialChatUuid={initial.chatUuid} initialMessages={initial.messages} />
+  );
 }

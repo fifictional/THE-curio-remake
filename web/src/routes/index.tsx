@@ -1,12 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
+
 import App from '../components/chat-app';
+import { loadChatPage } from '../server/api';
 
 /**
- * `ssr: false` for now: the page reads your session cookie and calls the API
- * from the browser. Server-side data loading (loaders) is the next step — it
- * needs cookie forwarding, which is its own decision.
+ * SSR: the loader runs on the server, forwards the session cookie to the API and
+ * hands the first paint its data. No `ssr: false`, no empty shell, no spinner on
+ * a slow connection before the conversation appears.
  */
 export const Route = createFileRoute('/')({
-  ssr: false,
-  component: App,
+  loader: () => loadChatPage(),
+  component: ChatPage,
 });
+
+function ChatPage() {
+  return <App initial={Route.useLoaderData()} />;
+}

@@ -7,17 +7,13 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export interface Message {
-  messageUuid: string;
-  chatUuid: string;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: string;
-}
+import type { Message, SessionUser } from './types';
+
+export type { Message };
 
 export interface Me {
   authenticated: boolean;
-  user?: { sub: string; email?: string; name?: string | null };
+  user?: SessionUser;
 }
 
 /** Seeded by `npm run db:seed`. */
@@ -36,7 +32,11 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-export function useMe() {
+/**
+ * `initial` comes from the SSR loader: it makes the first paint correct without
+ * a round trip, and `initialDataUpdatedAt` stops an immediate client refetch.
+ */
+export function useMe(initial?: SessionUser | null) {
   return useQuery({
     queryKey: ['me'],
     queryFn: async () => {
@@ -44,6 +44,12 @@ export function useMe() {
       if (res.status === 401) return { authenticated: false } as Me;
       return (await res.json()) as Me;
     },
+    initialData:
+      initial === undefined
+        ? undefined
+        : ({ authenticated: !!initial, user: initial ?? undefined } as Me),
+    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    staleTime: 30_000,
   });
 }
 
@@ -79,13 +85,16 @@ export function useSignOut() {
   });
 }
 
-export function useMessages(chatUuid: string) {
+export function useMessages(chatUuid: string | null, initial?: Message[]) {
   return useQuery({
     queryKey: ['messages', chatUuid],
     queryFn: () =>
-      json<{ messages: Message[] }>(`/messages?chat=${encodeURIComponent(chatUuid)}`),
+      json<{ messages: Message[] }>(`/messages?chat=${encodeURIComponent(chatUuid!)}`),
     select: (d) => d.messages,
-    refetchOnMount: true,
+    enabled: !!chatUuid,
+    initialData: initial === undefined ? undefined : { messages: initial },
+    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    staleTime: 5_000,
   });
 }
 

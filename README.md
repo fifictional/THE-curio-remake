@@ -113,16 +113,23 @@ npm run ui:start   # next start on :3300
 `web/` is **TanStack Start** (v1) with file-based routes and TanStack Query:
 
 ```
-web/src/routes/__root.tsx   document shell + <Outlet/>
-web/src/routes/index.tsx    the chat page (ssr: false for now)
-web/src/router.tsx          getRouter()
-web/src/components/chat-app.tsx
-web/src/api.ts              TanStack Query hooks over fetch
+web/src/routes/__root.tsx        document shell + <Outlet/>
+web/src/routes/index.tsx         the chat page (server-rendered)
+web/src/server/api.ts            server functions: session + first chat + messages
+web/src/server/fetch.server.ts   forwards the request cookie to the API
+web/src/router.tsx               getRouter()
+web/src/components/chat-app.tsx  the surface
+web/src/api.ts                   TanStack Query hooks for mutations + refresh
 ```
 
-Start's dev server proxies the API on :3101, so Better Auth's cookie is
-same-origin — no CORS. `ssr: false` on the route because app-level SSR needs
-cookie forwarding into loaders; that is the next step, not an oversight.
+**SSR works**: the route loader (a server function) forwards the session cookie to
+the API on :3101 and returns the session, the user's first chat and its messages,
+so the first paint is the real conversation — no `ssr: false`, no "checking
+session" flash. Signed out, the server renders the sign-in card. The dev server
+still proxies the API so browser fetches stay same-origin.
+
+What `web/` does not have yet: the markdown renderer (messages show `**bold**`
+literally), the document/library screens, and parity with `ui/` per ADR 0004.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 
