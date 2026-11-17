@@ -69,8 +69,15 @@ npm run dev          # http://localhost:3101
 The page at `/` lists real rows and lets you move the chat between spaces.
 
 Uploading a document runs the local pipeline: `.local/files` → Document + Task →
-polling worker → text extraction → summary. PDFs are read from their text layer
-(`server/pdf.ts`); scans have no text layer and need OCR/Datalab.
+polling worker → text extraction → summary → **chunks embedded into Qdrant**. PDFs
+are read from their text layer (`server/pdf.ts`); scans have no text layer and need
+OCR/Datalab.
+
+`/aiChat` then retrieves the student's own chunks before answering and writes a
+`chat_citations` row per source document, which the chat's **Sources** tab renders.
+Requires `OPENAI_API_KEY` for *meaningful* retrieval: without one, vectors are
+deterministic pseudo-vectors and retrieval is off unless `RAG_OFFLINE=1` (wiring
+checks only). Backfill existing documents with `POST /rag/reindex {"all": true}`.
 
 Seeded ids: chat `44444444-4444-4444-8444-444444444444`, spaces `2222…` (Biology) and `3333…` (Chemistry).
 

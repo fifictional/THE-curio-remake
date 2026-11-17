@@ -30,6 +30,11 @@ export interface ChatRecord {
   spaceUuid?: string | null;
   documentUuid?: string | null;
   name?: string | null;
+  hideInRecent?: boolean | null;
+  titleChangedByTheUser?: boolean | null;
+  isWebSearchCalled?: boolean | null;
+  hasFlashcardsOrQuizzes?: boolean | null;
+  flashcardDeckUuid?: string | null;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
 }
@@ -42,6 +47,18 @@ export interface MessageRecord {
   content: string;
   isCompleted?: boolean | null;
   agentStatus?: string | null;
+  createdAt?: Date | string | null;
+}
+
+export interface CitationRecord {
+  chatCitationUuid: string;
+  chatUuid: string;
+  messageUuid: string;
+  type: string;
+  title: string;
+  url: string;
+  startIndex: number;
+  endIndex: number;
   createdAt?: Date | string | null;
 }
 
@@ -80,6 +97,18 @@ export interface HonoDataClient {
         toolName?: string | null;
         toolArguments?: unknown;
       }): Promise<AmplifyResult<MessageRecord>>;
+    };
+    ChatCitation: {
+      create(input: {
+        chatUuid: string;
+        messageUuid: string;
+        userUuid?: string | null;
+        type: string;
+        title: string;
+        url: string;
+        startIndex?: number;
+        endIndex?: number;
+      }): Promise<AmplifyResult<CitationRecord>>;
     };
     Flashcard: {
       listFlashcardByChatUuidAndCreatedAt(

@@ -190,6 +190,12 @@ export const chats = pgTable(
     }),
     name: text('name'),
     hideInRecent: boolean('hide_in_recent').notNull().default(false),
+    titleChangedByTheUser: boolean('title_changed_by_the_user').notNull().default(false),
+    /** The UI shows the chat's Sources tab only when this is true. */
+    isWebSearchCalled: boolean('is_web_search_called').notNull().default(false),
+    /** The UI shows Flashcards/Quiz tabs only when this is true. */
+    hasFlashcardsOrQuizzes: boolean('has_flashcards_or_quizzes').notNull().default(false),
+    flashcardDeckUuid: uuid('flashcard_deck_uuid'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

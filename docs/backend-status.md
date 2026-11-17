@@ -60,7 +60,9 @@ Now:
 ## 5. AI + vector search
 
 - `server/ai.ts`: OpenAI chat + embeddings through `fetch`, no SDK. **Without `OPENAI_API_KEY` it returns a deterministic mock reply**, so the whole flow is demonstrable offline.
-- `server/qdrant.ts`: collection bootstrap, upsert, search with a `userUuid` payload filter — same isolation model as the database.
+- `server/qdrant.ts`: collection bootstrap, upsert, search with a `userUuid` payload filter — same isolation model as the database. Two collections: `chat_messages` and `document_chunks`.
+- **Retrieval is wired into chat**: the worker chunks + embeds each document (1200 chars, 200 overlap), `/aiChat` retrieves the caller's top chunks before answering and writes one `chat_citations` row per source document, and the UI's Sources tab renders them (`isWebSearchCalled`, which the UI gates on, is now set when a chat gains citations). `POST /rag/reindex {documentUuid}` / `{all:true}` backfills. Character offsets are 0: we cannot know which span a model used, and faking one would highlight the wrong text.
+- **Offline behaviour**: `embed()` falls back to a deterministic pseudo-vector without a key, so index → filter → search is testable; *semantic* quality needs `OPENAI_API_KEY`, and retrieval stays off without one (`RAG_OFFLINE=1` forces it for wiring checks only).
 - `npm run qdrant:smoke`: upserts 3 points, searches, asserts cross-user isolation, cleans up. Passes.
 
 ## 6. The bridge — how the old UI runs unmodified
@@ -108,7 +110,6 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
   blocked on the decisions in `docs/migration-runbook.md` §5
 - **OCR for scanned PDFs, and Datalab-style layout/bbox extraction**
 - **Payments (Paddle)** and tier enforcement
-- **Chat citations / RAG in the UI** — backend endpoints exist, the UI does not call them
 - **Realtime push** — replaced by 4s polling on the open chat
 - **Open-source prep** — `users.json` (30 MB of real user records) and `debug.txt` are still in the old repo's git history and must be purged before anything goes public
 

@@ -11,7 +11,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 
 import { chat, embed, hasAiKey } from '../ai';
-import { upsert } from '../qdrant';
+import { upsert, searchDocumentChunks, type DocumentChunkHit } from '../qdrant';
 import { getValidatedBody, validateBody } from '../middleware/validate';
 import type { HonoEnv } from '../types';
 
@@ -29,7 +29,56 @@ export interface AiChatRoute {
 
 type Identity = { sub: string } | null;
 
-export function createAiChatRoute(): AiChatRoute {
+/** How many document chunks to ground an answer on. */
+const RAG_LIMIT = Number(process.env.RAG_LIMIT ?? 5);
+/**
+ * Minimum cosine similarity for a chunk to count as a source. 0.2 is a floor,
+ * not a relevance judgement: text-embedding-3-small scores related paragraphs
+ * well above it and unrelated ones well below.
+ */
+const RAG_MIN_SCORE = Number(process.env.RAG_MIN_SCORE ?? 0.2);
+
+export interface AiChatDeps {
+  /**
+   * Retrieval seam. Default: embed the question and search the user's document
+   * chunks in Qdrant (requires OPENAI_API_KEY). Injected in tests so citations
+   * can be exercised without a provider.
+   */
+  retrieve?: (input: { userUuid: string; query: string }) => Promise<DocumentChunkHit[]>;
+}
+
+/** Numbered excerpts, with the document name so the model can attribute them. */
+export function buildContext(chunks: DocumentChunkHit[]): string {
+  const numbered = chunks.map(
+    (chunk, i) => `[${i + 1}] "${chunk.documentName}"\n${chunk.text}`,
+  );
+
+  return [
+    'The student\'s own documents are below. Use them when they are relevant,',
+    'say which document you are relying on, and do not invent facts they do not contain.',
+    'If they are not relevant, answer normally and ignore them.',
+    '',
+    numbered.join('\n\n'),
+  ].join('\n');
+}
+
+/** One citation per document, best-scoring first. */
+export function citationsFor(chunks: DocumentChunkHit[]): Array<{
+  documentUuid: string;
+  documentName: string;
+}> {
+  const best = new Map<string, DocumentChunkHit>();
+  for (const chunk of chunks) {
+    const seen = best.get(chunk.documentUuid);
+    if (!seen || chunk.score > seen.score) best.set(chunk.documentUuid, chunk);
+  }
+
+  return [...best.values()]
+    .sort((a, b) => b.score - a.score)
+    .map((chunk) => ({ documentUuid: chunk.documentUuid, documentName: chunk.documentName }));
+}
+
+export function createAiChatRoute(deps: AiChatDeps = {}): AiChatRoute {
   const validate = validateBody(AiChatArgs);
 
   const handler = async (c: Context<HonoEnv>): Promise<Response> => {
@@ -64,27 +113,91 @@ export function createAiChatRoute(): AiChatRoute {
       content: input.message,
     });
 
-    // 2. build context from stored history (RLS keeps it to this user's rows)
+    // 2. retrieve the student's own documents for this question (best-effort:
+    //    a Qdrant or provider failure must not fail the chat).
+    const retrieve =
+      deps.retrieve ??
+      (async ({ userUuid, query }: { userUuid: string; query: string }) => {
+        // Without a provider the vectors are deterministic noise, so retrieval
+        // is off unless RAG_OFFLINE=1 (local wiring checks only — never in prod).
+        if (!hasAiKey() && process.env.RAG_OFFLINE !== '1') return [];
+        const vector = await embed(query);
+        return searchDocumentChunks(vector, {
+          userUuid,
+          limit: RAG_LIMIT,
+          minScore: RAG_MIN_SCORE,
+        });
+      });
+
+    let chunks: DocumentChunkHit[] = [];
+    try {
+      chunks = await retrieve({ userUuid: identity.sub, query: input.message });
+    } catch (err) {
+      console.warn('[aiChat] retrieval skipped:', (err as Error).message);
+    }
+
+    // 3. build context from stored history (RLS keeps it to this user's rows)
     const history = await client.models.Message.listByChat(
       { chatUuid: input.chatUuid },
       { limit: input.historyLimit ?? 20 },
     );
-    const turns = (history.data ?? []).map((m) => ({
+    const turns: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = (
+      history.data ?? []
+    ).map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
+    if (chunks.length) {
+      turns.unshift({ role: 'system', content: buildContext(chunks) });
+    }
 
-    // 3. ask the model
+    // 4. ask the model
     const reply = await chat(turns);
 
-    // 4. persist the assistant message
+    // 5. persist the assistant message
     const assistantMessage = await client.models.Message.create({
       chatUuid: input.chatUuid,
       role: 'assistant',
       content: reply,
     });
 
-    // 5. index both turns in Qdrant (soft failure — chat must not depend on it)
+    /*
+     * 6. record which documents grounded this answer. The legacy stack wrote
+     *    web-search citations with character offsets; here the source is a
+     *    document, so the URL is the document page and the offsets are 0 —
+     *    we cannot know which characters a model leaned on, and inventing a
+     *    span would make the UI highlight the wrong text.
+     */
+    const citations: Array<{ chatCitationUuid: string; title: string; url: string }> = [];
+    for (const source of citationsFor(chunks)) {
+      const created = await client.models.ChatCitation.create({
+        chatUuid: input.chatUuid,
+        messageUuid: assistantMessage.data!.messageUuid,
+        type: 'document',
+        title: source.documentName || 'Document',
+        url: `/documents/${source.documentUuid}`,
+        startIndex: 0,
+        endIndex: 0,
+      });
+      if (created.data) {
+        citations.push({
+          chatCitationUuid: created.data.chatCitationUuid,
+          title: created.data.title,
+          url: created.data.url,
+        });
+      }
+    }
+
+    /*
+     * 7. flag the chat: the UI only renders the Sources tab when the chat says
+     *    it has citations (legacy semantics: `isWebSearchCalled`). Same field,
+     *    now meaning "this conversation was grounded on sources".
+     */
+    if (citations.length) {
+      await client.models.Chat.update({ chatUuid: input.chatUuid, isWebSearchCalled: true });
+    }
+
+    // 8. index both turns in Qdrant (soft failure — chat must not depend on it)
     let indexed = false;
     if (hasAiKey()) {
       try {
@@ -125,6 +238,8 @@ export function createAiChatRoute(): AiChatRoute {
     return c.json({
       success: true,
       messages: [userMessage.data, assistantMessage.data],
+      citations,
+      retrieved: chunks.length,
       indexed,
       mock: !hasAiKey(),
     });

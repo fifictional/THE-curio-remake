@@ -93,6 +93,22 @@ export function createFakeDataClient(calls: RecordedCall[]): HonoDataClient {
         },
       },
 
+      ChatCitation: {
+        create: async (input) => {
+          record('ChatCitation.create', input);
+          return ok({
+            chatCitationUuid: 'citation-new',
+            chatUuid: input.chatUuid,
+            messageUuid: input.messageUuid,
+            type: input.type,
+            title: input.title,
+            url: input.url,
+            startIndex: input.startIndex ?? 0,
+            endIndex: input.endIndex ?? 0,
+            createdAt: '2026-11-12T10:01:05Z',
+          });
+        },
+      },
       Flashcard: {
         listFlashcardByChatUuidAndCreatedAt: async ({ chatUuid }) => {
           record('Flashcard.listFlashcardByChatUuidAndCreatedAt', { chatUuid });

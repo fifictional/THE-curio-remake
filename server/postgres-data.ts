@@ -21,7 +21,7 @@ import type {
   UpdateOptions,
 } from './data-client';
 import { asUser } from './db/scope';
-import { chats, flashcards, messages, questions, spaces } from './db/schema';
+import { chatCitations, chats, flashcards, messages, questions, spaces } from './db/schema';
 
 const iso = (d: Date | string | null | undefined) =>
   d instanceof Date ? d.toISOString() : (d ?? null);
@@ -37,6 +37,11 @@ function toChatRecord(row: typeof chats.$inferSelect): ChatRecord {
     spaceUuid: row.spaceUuid,
     documentUuid: row.documentUuid,
     name: row.name,
+    hideInRecent: row.hideInRecent,
+    titleChangedByTheUser: row.titleChangedByTheUser,
+    isWebSearchCalled: row.isWebSearchCalled,
+    hasFlashcardsOrQuizzes: row.hasFlashcardsOrQuizzes,
+    flashcardDeckUuid: row.flashcardDeckUuid,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -70,6 +75,14 @@ export function createPostgresDataClient(userId: string | null): HonoDataClient 
           };
           if ('spaceUuid' in input) patch.spaceUuid = (input.spaceUuid as string | null) ?? null;
           if (typeof input.name === 'string') patch.name = input.name;
+          for (const flag of [
+            'hideInRecent',
+            'titleChangedByTheUser',
+            'isWebSearchCalled',
+            'hasFlashcardsOrQuizzes',
+          ] as const) {
+            if (typeof input[flag] === 'boolean') patch[flag] = input[flag] as boolean;
+          }
 
           const [row] = await db
             .update(chats)
@@ -139,6 +152,38 @@ export function createPostgresDataClient(userId: string | null): HonoDataClient 
         },
       },
 
+      ChatCitation: {
+        async create(input) {
+          return asUser(userId, async (db) => {
+            const [row] = await db
+              .insert(chatCitations)
+              .values({
+                chatCitationUuid: crypto.randomUUID(),
+                chatUuid: input.chatUuid,
+                messageUuid: input.messageUuid,
+                userUuid: input.userUuid ?? userId,
+                type: input.type,
+                title: input.title,
+                url: input.url,
+                startIndex: input.startIndex ?? 0,
+                endIndex: input.endIndex ?? 0,
+              })
+              .returning();
+
+            return ok({
+              chatCitationUuid: row.chatCitationUuid,
+              chatUuid: row.chatUuid,
+              messageUuid: row.messageUuid,
+              type: row.type,
+              title: row.title,
+              url: row.url,
+              startIndex: row.startIndex,
+              endIndex: row.endIndex,
+              createdAt: iso(row.createdAt),
+            });
+          });
+        },
+      },
       Flashcard: {
         async listFlashcardByChatUuidAndCreatedAt({ chatUuid }, options) {
           return asUser(userId, async (db) => {

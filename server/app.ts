@@ -15,7 +15,7 @@ import { createFakeDataClient, type RecordedCall } from './fake-data';
 import type { HonoDataClient } from './data-client';
 import { createMessagesRoute } from './routes/messages';
 import { createMoveChatRoute } from './routes/move-chat';
-import { createAiChatRoute } from './routes/ai-chat';
+import { createAiChatRoute, type AiChatDeps } from './routes/ai-chat';
 import { createRagRoutes } from './routes/rag';
 import { handleDbRequest, modelCount } from './routes/db';
 import { deleteFile, downloadFile, uploadFile } from './routes/files';
@@ -27,6 +27,8 @@ export interface AppOptions {
   auth?: boolean;
   /** Build the data client for this request. Defaults to the in-memory fake. */
   clientFactory?: (userId: string | null) => HonoDataClient;
+  /** Retrieval seam for /aiChat. Tests inject chunks; production uses Qdrant. */
+  aiChat?: AiChatDeps;
 }
 
 export function createApp(opts: AppOptions = {}) {
@@ -123,7 +125,7 @@ export function createApp(opts: AppOptions = {}) {
   const moveChat = createMoveChatRoute();
   app.post('/moveChat', moveChat.validate, moveChat.handler);
 
-  const aiChat = createAiChatRoute();
+  const aiChat = createAiChatRoute(opts.aiChat);
   app.post('/aiChat', aiChat.validate, aiChat.handler);
 
   // Local object storage + document creation (the S3 + pipeline replacement).

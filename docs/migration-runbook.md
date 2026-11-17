@@ -153,6 +153,24 @@ left join messages m on m.chat_uuid = c.chat_uuid
 group by 1 order by 3 desc limit 5;
 ```
 
+## 3b. Derive the chat flags after the load
+
+Two `Chat` booleans are UI gates, and the legacy rows may disagree with the child
+rows (a chat can have citations without the flag set). Derive them from the data,
+not from the export:
+
+```sql
+update chats c set is_web_search_called = true
+where exists (select 1 from chat_citations cc where cc.chat_uuid = c.chat_uuid);
+
+update chats c set has_flashcards_or_quizzes = true
+where exists (select 1 from flashcards f where f.chat_uuid = c.chat_uuid)
+   or exists (select 1 from quizzes q where q.source_uuid = c.chat_uuid and q.source_type = 'chat');
+```
+
+Dev: 8 chats have citations, 24 have flashcards/quizzes. Without this the Sources and
+Flashcards tabs stay hidden even though the rows exist.
+
 ## 4. Every model has a table
 
 All 44 DynamoDB models in `scripts/export-dynamo.mjs` now have a `pgTable` and a

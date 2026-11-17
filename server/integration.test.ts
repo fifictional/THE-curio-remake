@@ -19,7 +19,7 @@ import { createApp } from './app';
 import type { HonoDataClient } from './data-client';
 import { ownerDb } from './db/owner-client';
 import { asUser } from './db/scope';
-import { chats, flashcardDecks, partnerships, spaces, users } from './db/schema';
+import { chatCitations, chats, flashcardDecks, partnerships, spaces, users } from './db/schema';
 import { createPostgresDataClient } from './postgres-data';
 
 /**
@@ -48,8 +48,30 @@ const emailA = `a-${stamp}@curio.test`;
 const emailB = `b-${stamp}@curio.test`;
 const password = 'integration-password-123';
 
+/**
+ * Retrieval is injected: the citation path must be provable without an OpenAI
+ * key or a Qdrant collection, and the shape is what the test is about.
+ */
+const retrievedChunks = [
+  {
+    score: 0.91,
+    documentUuid: '99999999-9999-4999-8999-999999999999',
+    documentName: 'Cell Biology Notes',
+    chunkIndex: 0,
+    text: 'Mitochondria produce ATP through oxidative phosphorylation.',
+  },
+  {
+    score: 0.74,
+    documentUuid: '99999999-9999-4999-8999-999999999999',
+    documentName: 'Cell Biology Notes',
+    chunkIndex: 3,
+    text: 'Chloroplasts carry out photosynthesis in plant cells.',
+  },
+];
+
 const { app } = createApp({
   clientFactory: (userId: string | null): HonoDataClient => createPostgresDataClient(userId),
+  aiChat: { retrieve: async () => retrievedChunks },
 });
 
 const createdUserIds: string[] = [];
@@ -166,6 +188,65 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
       }),
     });
     expect(own.status).toBe(200);
+  });
+
+  it('records the documents that grounded an answer, scoped to the chat', async () => {
+    // Own chat, so the message-count assertion elsewhere is unaffected.
+    const citationChatUuid = crypto.randomUUID();
+    await asUser(userA.userId, (db) =>
+      db.insert(chats).values({
+        chatUuid: citationChatUuid,
+        userUuid: userA.userId,
+        name: 'citation chat',
+      }),
+    );
+
+    const res = await app.request('/aiChat', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ chatUuid: citationChatUuid, message: 'what do mitochondria do' }),
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      citations: Array<{ title: string; url: string }>;
+      retrieved: number;
+    };
+    expect(body.retrieved).toBe(2);
+    // Two chunks from one document → one citation, not two.
+    expect(body.citations).toHaveLength(1);
+    expect(body.citations[0].title).toBe('Cell Biology Notes');
+    expect(body.citations[0].url).toBe('/documents/99999999-9999-4999-8999-999999999999');
+
+    // The Sources tab reads them through the bridge, filtered by chat.
+    const listed = await app.request('/db', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({
+        model: 'ChatCitation',
+        method: 'listChatCitationByChatUuidAndCreatedAt',
+        args: { chatUuid: citationChatUuid },
+      }),
+    });
+    const listedBody = (await listed.json()) as { data: Array<{ title: string }> };
+    expect(listedBody.data.map((c) => c.title)).toContain('Cell Biology Notes');
+
+    // Another signed-in user cannot read this chat's citations.
+    const foreign = await app.request('/db', {
+      method: 'POST',
+      headers: as(userB.cookie),
+      body: JSON.stringify({
+        model: 'ChatCitation',
+        method: 'listChatCitationByChatUuidAndCreatedAt',
+        args: { chatUuid: citationChatUuid },
+      }),
+    });
+    expect(((await foreign.json()) as { data: unknown[] }).data).toHaveLength(0);
+
+    const [stored] = await asUser(userA.userId, (db) =>
+      db.select().from(chatCitations).where(eq(chatCitations.chatUuid, citationChatUuid)),
+    );
+    expect(stored.type).toBe('document');
   });
 
   it('enforces isolation in Postgres itself (RLS, not just the route)', async () => {

@@ -34,7 +34,7 @@ export function createRagRoutes(): RagRoutes {
   const searchHandler = async (c: Context<HonoEnv>): Promise<Response> => {
     const identity = c.var.identity as Identity;
     if (!identity) return c.json({ success: false, error: 'Not signed in' }, 401);
-    if (!hasAiKey()) {
+    if (!hasAiKey() && process.env.RAG_OFFLINE !== '1') {
       return c.json(
         { success: false, error: 'OPENAI_API_KEY not set — retrieval unavailable' },
         503,

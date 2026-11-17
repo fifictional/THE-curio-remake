@@ -22,6 +22,7 @@ import type { Context } from 'hono';
 import { asUser } from '../db/scope';
 import {
   appSettings,
+  chatCitations,
   batchProcesses,
   bundles,
   chats,
@@ -141,6 +142,12 @@ const REGISTRY: Record<string, ModelDef> = {
     timestamps: ['createdAt'],
   },
   Partnership: { table: partnerships as never, pk: 'partnershipUuid' },
+  /** Sources shown in the chat's Sources tab (written by /aiChat). */
+  ChatCitation: {
+    table: chatCitations as never,
+    pk: 'chatCitationUuid',
+    timestamps: ['createdAt'],
+  },
   /** 21 rows in dev: nothing stopped the old UI creating one per session. */
   AppSettings: { table: appSettings as never, pk: 'appSettingsUuid', timestamps: ['updatedAt'] },
 };
