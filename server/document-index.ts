@@ -1,9 +1,15 @@
 /**
- * Document indexing for retrieval.
+ * Document indexing and retrieval.
  *
  * The old stack pushed a document through S3 events → SQS → an embedding ECS
- * task. Here the polling worker already has the text, so it indexes inline:
- * chunk → embed → Qdrant, scoped by `userUuid`.
+ * task. Here the polling worker already has the text, so it indexes inline.
+ *
+ * Two indexes, one chunk list:
+ *   - **Postgres full text** — always. `to_tsvector('english', text)` with a GIN
+ *     index; keyword search over study material is good, and it needs no
+ *     provider, so retrieval works on a fresh clone with no keys at all.
+ *   - **Qdrant vectors** — only when an embedding key is set. Paraphrase-level
+ *     matching, at the cost of a provider.
  *
  * Chunk ids are deterministic (derived from document + chunk index), so
  * re-indexing overwrites instead of duplicating.
@@ -11,8 +17,16 @@
 
 import { createHash } from 'node:crypto';
 
-import { embed } from './ai';
-import { upsertDocumentChunks, type DocumentChunkPoint } from './qdrant';
+import { eq, sql } from 'drizzle-orm';
+
+import { embed, hasAiKey } from './ai';
+import { serviceDb } from './db/service-client';
+import { documentChunks } from './db/schema';
+import {
+  deleteDocumentChunks,
+  upsertDocumentChunks,
+  type DocumentChunkPoint,
+} from './qdrant';
 
 /** ~1200 chars is a few paragraphs: enough context, small enough to rank. */
 export const CHUNK_SIZE = Number(process.env.RAG_CHUNK_SIZE ?? 1200);
@@ -23,7 +37,12 @@ export const CHUNK_OVERLAP = Number(process.env.RAG_CHUNK_OVERLAP ?? 200);
  * sentence that straddles a boundary retrievable from both sides.
  */
 export function chunkText(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): string[] {
-  const clean = text.replace(/\s+/g, ' ').trim();
+  // Control characters (NUL included) are invalid in Postgres text; drop them
+  // before they reach either index.
+  const clean = text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (clean.length <= size) return clean ? [clean] : [];
 
   const chunks: string[] = [];
@@ -65,28 +84,112 @@ export interface IndexDocumentInput {
 }
 
 /**
- * Index one document's text. Throws if Qdrant or the provider fails; callers
- * treat indexing as best-effort (a document is still usable without vectors).
+ * Index one document's text. Postgres first (always), then vectors when a
+ * provider is available. Throws on database failure; callers treat indexing as
+ * best-effort, so a Qdrant outage must not fail the document pipeline.
  */
 export async function indexDocumentText(input: IndexDocumentInput): Promise<number> {
   const chunks = chunkText(input.text);
   if (!chunks.length) return 0;
 
-  const points: DocumentChunkPoint[] = [];
-  for (const [chunkIndex, text] of chunks.entries()) {
-    points.push({
+  // Replace this document's chunks: a re-index may be shorter than the last one.
+  await serviceDb.delete(documentChunks).where(eq(documentChunks.documentUuid, input.documentUuid));
+  await serviceDb.insert(documentChunks).values(
+    chunks.map((text, chunkIndex) => ({
       id: chunkId(input.documentUuid, chunkIndex),
-      vector: await embed(text),
-      payload: {
-        userUuid: input.userUuid,
-        documentUuid: input.documentUuid,
-        documentName: input.documentName,
-        chunkIndex,
-        text,
-      },
-    });
+      documentUuid: input.documentUuid,
+      userUuid: input.userUuid,
+      chunkIndex,
+      documentName: input.documentName,
+      text,
+    })),
+  );
+
+  if (hasAiKey()) {
+    const points: DocumentChunkPoint[] = [];
+    for (const [chunkIndex, text] of chunks.entries()) {
+      points.push({
+        id: chunkId(input.documentUuid, chunkIndex),
+        vector: await embed(text),
+        payload: {
+          userUuid: input.userUuid,
+          documentUuid: input.documentUuid,
+          documentName: input.documentName,
+          chunkIndex,
+          text,
+        },
+      });
+    }
+
+    await deleteDocumentChunks(input.userUuid, input.documentUuid);
+    await upsertDocumentChunks(points);
   }
 
-  await upsertDocumentChunks(points);
-  return points.length;
+  return chunks.length;
+}
+
+export interface TextHit {
+  score: number;
+  documentUuid: string;
+  documentName: string;
+  chunkIndex: number;
+  text: string;
+}
+
+/**
+ * Full-text retrieval: Postgres ranks the caller's own chunks. `websearch_to_tsquery`
+ * means a student can type a sentence and still get matches, and the user filter
+ * is applied in SQL (the owner connection bypasses RLS, so it is explicit here).
+ */
+export async function searchDocumentText(input: {
+  userUuid: string;
+  query: string;
+  limit?: number;
+}): Promise<TextHit[]> {
+  const query = input.query.trim();
+  if (!query) return [];
+
+  const limit = input.limit ?? 5;
+
+  /*
+   * Two passes, because a student types questions, not search syntax:
+   *   1. `websearch_to_tsquery` — every term must match (precise)
+   *   2. if that finds nothing, the same terms OR'd together, ranked — a
+   *      question like "what does the policy require for consent" would
+   *      otherwise match nothing because of "what"/"does"/"require"
+   */
+  const queryFor = (joiner: 'and' | 'or') => sql`
+    select string_agg(quote_literal(lexeme), ${joiner === 'or' ? ' | ' : ' & '}) as q
+    from unnest(tsvector_to_array(to_tsvector('english', ${query}))) as lexeme
+  `;
+
+  const search = async (joiner: 'and' | 'or') =>
+    serviceDb.execute(sql`
+      with terms as (${queryFor(joiner)})
+      select c.document_uuid as "documentUuid",
+             c.document_name as "documentName",
+             c.chunk_index as "chunkIndex",
+             c.text,
+             ts_rank_cd(
+               to_tsvector('english', c.text),
+               to_tsquery('english', (select q from terms))
+             ) as rank
+      from document_chunks c, terms
+      where c.user_uuid = ${input.userUuid}
+        and terms.q is not null
+        and to_tsvector('english', c.text) @@ to_tsquery('english', terms.q)
+      order by rank desc
+      limit ${limit}
+    `);
+
+  let rows = await search('and');
+  if (rows.length === 0) rows = await search('or');
+
+  return (rows as unknown as Array<Record<string, unknown>>).map((row) => ({
+    score: Number(row.rank ?? 0),
+    documentUuid: String(row.documentUuid),
+    documentName: String(row.documentName ?? ''),
+    chunkIndex: Number(row.chunkIndex ?? 0),
+    text: String(row.text ?? ''),
+  }));
 }

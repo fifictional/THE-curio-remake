@@ -30,7 +30,12 @@ export async function extractPdfText(buffer: Uint8Array): Promise<string | null>
     // on perfectly readable PDFs, and the worker would log one per document.
     const pdf = await getDocumentProxy(buffer, { verbosity: 0 });
     const { text } = await pdfText(pdf, { mergePages: true });
+    // Postgres text cannot hold NUL bytes, and pdf.js happily produces them for
+    // some embedded fonts (`\u0000` inside Devanagari glyph maps, for example).
+    // Strip control characters here: they would poison the summary insert, the
+    // chunk insert and the FTS index alike.
     const flat = String(text ?? '')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 

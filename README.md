@@ -76,9 +76,15 @@ OCR/Datalab.
 
 `/aiChat` then retrieves the student's own chunks before answering and writes a
 `chat_citations` row per source document, which the chat's **Sources** tab renders.
-Requires `OPENAI_API_KEY` for *meaningful* retrieval: without one, vectors are
-deterministic pseudo-vectors and retrieval is off unless `RAG_OFFLINE=1` (wiring
-checks only). Backfill existing documents with `POST /rag/reindex {"all": true}`.
+
+Retrieval has two paths, and **the keyless one is real**: with `OPENAI_API_KEY`
+it searches Qdrant vectors; without it, Postgres full-text search (`to_tsvector` /
+`websearch_to_tsquery`, with an OR fallback so questions match). Backfill existing
+documents with `POST /rag/reindex {"all": true}`.
+
+Three database roles: the migrating **owner**, `curio_app` (requests, NOBYPASSRLS)
+and `curio_service` (worker + indexer, BYPASSRLS). `npm run db:rls` creates the
+last two.
 
 Seeded ids: chat `44444444-4444-4444-8444-444444444444`, spaces `2222…` (Biology) and `3333…` (Chemistry).
 

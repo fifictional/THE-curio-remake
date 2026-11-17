@@ -171,6 +171,33 @@ where exists (select 1 from flashcards f where f.chat_uuid = c.chat_uuid)
 Dev: 8 chats have citations, 24 have flashcards/quizzes. Without this the Sources and
 Flashcards tabs stay hidden even though the rows exist.
 
+## 3c. Production roles (before the first deploy)
+
+Managed Postgres will not give you a superuser, and `FORCE ROW LEVEL SECURITY`
+applies to the table owner too. The worker and importer act for no single request,
+so they need their own bypass role — never the migration credential:
+
+```sql
+-- once, with the provider's admin credential
+create role curio_owner   login password '…';   -- owns the schema
+create role curio_service login password '…' bypassrls;
+create role curio_app     login password '…' nobypassrls;
+
+grant usage on schema public to curio_service, curio_app;
+grant select, insert, update, delete on all tables in schema public
+  to curio_service, curio_app;
+```
+
+- `DATABASE_URL_OWNER` — CI/deploy only, runs `db:migrate` and `db:rls`.
+- `DATABASE_URL_SERVICE` — the API process, used by the polling worker + indexer.
+- `DATABASE_URL` — the API process, used for every request.
+- `BYPASSRLS` cannot be self-granted; it comes from the provisioning credential.
+- Re-run `npm run db:rls` after every migration that adds a table: it grants DML to
+  both runtime roles, and a table without that grant fails as a 500, not a 403.
+
+`server/rls.test.ts` asserts the split: app role cannot bypass, service role can,
+neither owns a table, and the owner is neither of them.
+
 ## 4. Every model has a table
 
 All 44 DynamoDB models in `scripts/export-dynamo.mjs` now have a `pgTable` and a

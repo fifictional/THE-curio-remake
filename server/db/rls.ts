@@ -1,10 +1,18 @@
 /**
- * Row-level security.
+ * Row-level security + the role model.
  *
- * Applied to the six DATA tables. The four auth tables (`users`, `sessions`,
- * `accounts`, `verifications`) are deliberately excluded: Better Auth writes
- * them before any user context exists, so a policy keyed on `app.user_id`
- * would make sign-up impossible. Those are protected by session-token logic.
+ * Three roles, three jobs:
+ *   - the **owner** (whoever runs migrations) owns the schema and is the only
+ *     role that can enable/disable RLS or add policies — never given to the app
+ *   - `curio_service` runs background work for no single request (polling
+ *     worker, indexer) and needs BYPASSRLS: FORCE RLS applies to the table owner
+ *     too unless it is a superuser, which it is not on managed Postgres
+ *   - `curio_app` serves requests: LOGIN, NOBYPASSRLS, owns nothing, so it can
+ *     only ever see what a policy allows
+ *
+ * The four auth tables (`users`, `sessions`, `accounts`, `verifications`) are
+ * deliberately excluded: Better Auth writes them before any user context exists,
+ * so a policy keyed on `app.user_id` would make sign-up impossible.
  *
  * `FORCE ROW LEVEL SECURITY` matters: without it, the table owner (our `curio`
  * role) bypasses policies, so the app would *look* protected and not be.
@@ -33,6 +41,7 @@ const tables = [
   'quiz_questions',
   'quiz_attempts',
   'flashcard_decks',
+  'document_chunks',
 ] as const;
 
 /** Tables whose ownership comes from their document, not their own column. */
@@ -111,13 +120,21 @@ async function main() {
       if not exists (select from pg_roles where rolname = 'curio_app') then
         create role curio_app login password 'curio_app' nosuperuser nobypassrls;
       end if;
+      -- Background work acts for no single request: it needs the bypass, and it
+      -- is a different credential from the app on purpose.
+      if not exists (select from pg_roles where rolname = 'curio_service') then
+        create role curio_service login password 'curio_service' nosuperuser bypassrls;
+      end if;
     end $$;
   `);
-  await sql.unsafe('grant usage on schema public to curio_app');
-  await sql.unsafe(
-    'grant select, insert, update, delete on all tables in schema public to curio_app',
-  );
-  console.log('  role curio_app (no bypassrls)');
+
+  for (const role of ['curio_app', 'curio_service'] as const) {
+    await sql.unsafe(`grant usage on schema public to ${role}`);
+    await sql.unsafe(
+      `grant select, insert, update, delete on all tables in schema public to ${role}`,
+    );
+  }
+  console.log('  roles curio_app (nobypassrls), curio_service (bypassrls), owner (migrations)');
 
   for (const table of tables) {
     await sql.unsafe(`alter table ${table} enable row level security`);

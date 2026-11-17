@@ -21,7 +21,8 @@ import type { Context } from 'hono';
 import { z } from 'zod';
 
 import { chat, hasAiKey } from '../ai';
-import { ownerDb } from '../db/owner-client';
+import { asUser } from '../db/scope';
+import { serviceDb } from '../db/service-client';
 import { documentSummaries, documents, spaces, tasks } from '../db/schema';
 import { getValidatedBody, validateBody } from '../middleware/validate';
 import { indexDocumentText } from '../document-index';
@@ -63,44 +64,51 @@ export async function createDocument(c: Context<HonoEnv>): Promise<Response> {
     return c.json({ success: false, error: 'Not found' }, 404);
   }
 
-  // Ownership of the target folder, if one was given.
-  let spaceUuid: string | null = input.spaceUuid ?? null;
-  if (spaceUuid) {
-    const [space] = await ownerDb
-      .select()
-      .from(spaces)
-      .where(and(eq(spaces.spaceUuid, spaceUuid), eq(spaces.userUuid, identity.sub)))
-      .limit(1);
-    if (!space) spaceUuid = null;
-  }
+  // Request-path writes go through `asUser`, so RLS decides — not the owner
+  // role. That keeps this route correct on managed Postgres, where the owner is
+  // not a superuser and FORCE RLS applies to it.
+  const created = await asUser(identity.sub, async (db) => {
+    // Ownership of the target folder, if one was given (RLS scopes the read).
+    let spaceUuid: string | null = input.spaceUuid ?? null;
+    if (spaceUuid) {
+      const [space] = await db
+        .select({ spaceUuid: spaces.spaceUuid })
+        .from(spaces)
+        .where(eq(spaces.spaceUuid, spaceUuid))
+        .limit(1);
+      if (!space) spaceUuid = null;
+    }
 
-  const [document] = await ownerDb
-    .insert(documents)
-    .values({
-      documentUuid,
-      userUuid: identity.sub,
-      spaceUuid,
-      key: input.originalKey,
-      originalKey: input.originalKey,
-      fileName: input.fileName,
-      type: input.type,
-    })
-    .returning();
+    const [document] = await db
+      .insert(documents)
+      .values({
+        documentUuid,
+        userUuid: identity.sub,
+        spaceUuid,
+        key: input.originalKey,
+        originalKey: input.originalKey,
+        fileName: input.fileName,
+        type: input.type,
+      })
+      .returning();
 
-  const [task] = await ownerDb
-    .insert(tasks)
-    .values({
-      taskUuid: crypto.randomUUID(),
-      documentUuid,
-      userUuid: identity.sub,
-      status: 'PENDING',
-      type: 'DOCUMENT_PROCESSING',
-      args: { fileName: input.fileName },
-      progress: 0,
-    })
-    .returning();
+    const [task] = await db
+      .insert(tasks)
+      .values({
+        taskUuid: crypto.randomUUID(),
+        documentUuid,
+        userUuid: identity.sub,
+        status: 'PENDING',
+        type: 'DOCUMENT_PROCESSING',
+        args: { fileName: input.fileName },
+        progress: 0,
+      })
+      .returning();
 
-  return c.json({ success: true, document, task });
+    return { document, task };
+  });
+
+  return c.json({ success: true, ...created });
 }
 
 /**
@@ -141,7 +149,7 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
   // Only document-bearing work. A migrated CHAT task has no document and used
   // to fill the batch forever: it was skipped and left PENDING, so the same
   // three rows were claimed on every pass.
-  const pending = await ownerDb
+  const pending = await serviceDb
     .select()
     .from(tasks)
     .where(and(inArray(tasks.status, ['PENDING']), isNotNull(tasks.documentUuid)))
@@ -152,12 +160,12 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
   for (const task of pending) {
     if (!task.documentUuid) continue;
 
-    await ownerDb
+    await serviceDb
       .update(tasks)
       .set({ status: 'PROCESSING', progress: 10, updatedAt: new Date() })
       .where(eq(tasks.taskUuid, task.taskUuid));
 
-    const [document] = await ownerDb
+    const [document] = await serviceDb
       .select()
       .from(documents)
       .where(eq(documents.documentUuid, task.documentUuid))
@@ -188,7 +196,7 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
       }
 
       if (document) {
-        await ownerDb.insert(documentSummaries).values({
+        await serviceDb.insert(documentSummaries).values({
           documentSummaryUuid: crypto.randomUUID(),
           documentUuid: document.documentUuid,
           title,
@@ -218,7 +226,7 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
         }
       }
 
-      await ownerDb
+      await serviceDb
         .update(tasks)
         .set({
           status: 'COMPLETED',
@@ -230,7 +238,7 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
 
       processed += 1;
     } catch (err) {
-      await ownerDb
+      await serviceDb
         .update(tasks)
         .set({
           status: 'FAILED',

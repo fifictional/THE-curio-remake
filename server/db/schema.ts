@@ -16,7 +16,7 @@
  * sort key; Postgres does not.
  */
 
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   doublePrecision,
@@ -1167,5 +1167,37 @@ export const userLearningProfileHistory = pgTable(
   (t) => [
     index('user_learning_profile_history_user_idx').on(t.userUuid, t.createdAt),
     index('user_learning_profile_history_concept_idx').on(t.concept, t.createdAt),
+  ],
+);
+
+/**
+ * Document chunks — the retrieval index.
+ *
+ * Two readers: keyword search (Postgres full-text, always available) and vector
+ * search (Qdrant, only with an embedding key). Chunk text lives here because
+ * full-text search needs no provider at all, and a study app's documents are
+ * exactly the corpus keyword search is good at.
+ */
+export const documentChunks = pgTable(
+  'document_chunks',
+  {
+    /** Deterministic: hash of (documentUuid, chunkIndex), so re-indexing updates. */
+    id: uuid('id').primaryKey(),
+    documentUuid: uuid('document_uuid')
+      .notNull()
+      .references(() => documents.documentUuid, { onDelete: 'cascade' }),
+    userUuid: uuid('user_uuid')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    chunkIndex: integer('chunk_index').notNull(),
+    documentName: text('document_name').notNull().default(''),
+    text: text('text').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('document_chunks_user_idx').on(t.userUuid),
+    index('document_chunks_doc_idx').on(t.documentUuid, t.chunkIndex),
+    index('document_chunks_fts_idx').using('gin', sql`to_tsvector('english', ${t.text})`),
   ],
 );

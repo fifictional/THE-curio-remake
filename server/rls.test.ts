@@ -197,26 +197,53 @@ suite('row-level security invariants', () => {
     expect(role.rolbypassrls).toBe(false);
     expect(role.rolcanlogin).toBe(true);
 
-    const owned = (await tables()).filter((t) => t.owner === 'curio_app');
-    expect(owned.map((t) => t.name), 'the app role must not own tables').toEqual([]);
+    const owned = (await tables()).filter((t) => ['curio_app', 'curio_service'].includes(t.owner));
+    expect(owned.map((t) => t.name), 'runtime roles must not own tables').toEqual([]);
   });
 
-  it('grants the app role read and write on every table', async () => {
-    const rows = await sql<Array<{ name: string; canRead: boolean; canWrite: boolean }>>`
-      select c.relname as name,
-             has_table_privilege('curio_app', c.oid, 'select') as "canRead",
-             has_table_privilege('curio_app', c.oid, 'insert')
-               and has_table_privilege('curio_app', c.oid, 'update')
-               and has_table_privilege('curio_app', c.oid, 'delete') as "canWrite"
-      from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and c.relkind = 'r'
-      order by 1
+  it('runs background work as a separate role that can bypass RLS', async () => {
+    // The worker writes tasks/summaries/chunks for no single request, and FORCE
+    // RLS applies to a non-superuser owner. A dedicated bypass role is the
+    // alternative to putting the migration credential into the runtime.
+    const [role] = await sql<
+      Array<{ rolsuper: boolean; rolbypassrls: boolean; rolcanlogin: boolean }>
+    >`
+      select rolsuper, rolbypassrls, rolcanlogin from pg_roles where rolname = 'curio_service'
     `;
 
-    expect(rows.filter((r) => !r.canRead).map((r) => r.name)).toEqual([]);
-    expect(rows.filter((r) => !r.canWrite).map((r) => r.name)).toEqual([]);
-    expect((await sql<Array<{ ok: boolean }>>`select has_schema_privilege('curio_app', 'public', 'usage') as ok`)[0].ok).toBe(true);
+    expect(role, 'role curio_service must exist (npm run db:rls)').toBeTruthy();
+    expect(role.rolbypassrls, 'background work needs BYPASSRLS').toBe(true);
+    expect(role.rolsuper, 'the service role must not be a superuser').toBe(false);
+    expect(role.rolcanlogin).toBe(true);
+
+    // Three roles, three jobs: the owner is neither runtime role.
+    const [owner] = await sql<Array<{ owner: string }>>`
+      select tableowner as owner from pg_tables where schemaname = 'public' limit 1
+    `;
+    expect(['curio_app', 'curio_service']).not.toContain(owner.owner);
+  });
+
+  it('grants both runtime roles read and write on every table', async () => {
+    for (const role of ['curio_app', 'curio_service']) {
+      const rows = await sql<Array<{ name: string; canRead: boolean; canWrite: boolean }>>`
+        select c.relname as name,
+               has_table_privilege(${role}, c.oid, 'select') as "canRead",
+               has_table_privilege(${role}, c.oid, 'insert')
+                 and has_table_privilege(${role}, c.oid, 'update')
+                 and has_table_privilege(${role}, c.oid, 'delete') as "canWrite"
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r'
+        order by 1
+      `;
+
+      expect(rows.filter((r) => !r.canRead).map((r) => r.name), role).toEqual([]);
+      expect(rows.filter((r) => !r.canWrite).map((r) => r.name), role).toEqual([]);
+      const [schema] = await sql<Array<{ ok: boolean }>>`
+        select has_schema_privilege(${role}, 'public', 'usage') as ok
+      `;
+      expect(schema.ok, `${role} must be able to use schema public`).toBe(true);
+    }
   });
 
   it('shows a stranger no rows in user data or owner-only tables', async () => {

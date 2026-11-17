@@ -19,7 +19,8 @@ import { createApp } from './app';
 import type { HonoDataClient } from './data-client';
 import { ownerDb } from './db/owner-client';
 import { asUser } from './db/scope';
-import { chatCitations, chats, flashcardDecks, partnerships, spaces, users } from './db/schema';
+import { chatCitations, chats, documents, flashcardDecks, partnerships, spaces, users } from './db/schema';
+import { indexDocumentText, searchDocumentText } from './document-index';
 import { createPostgresDataClient } from './postgres-data';
 
 /**
@@ -247,6 +248,53 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
       db.select().from(chatCitations).where(eq(chatCitations.chatUuid, citationChatUuid)),
     );
     expect(stored.type).toBe('document');
+  });
+
+  it('retrieves a document by keyword for its owner only (no API key needed)', async () => {
+    const documentUuid = crypto.randomUUID();
+
+    await asUser(userA.userId, (db) =>
+      db.insert(documents).values({
+        documentUuid,
+        userUuid: userA.userId,
+        key: `student-documents/${userA.userId}/kb/file.pdf`,
+        fileName: 'Cell Biology Notes',
+        type: 'pdf',
+      }),
+    );
+
+    const chunks = await indexDocumentText({
+      userUuid: userA.userId,
+      documentUuid,
+      documentName: 'Cell Biology Notes',
+      text:
+        'Mitochondria produce ATP through oxidative phosphorylation. ' +
+        'Chloroplasts carry out photosynthesis in plant cells.',
+    });
+    expect(chunks).toBeGreaterThan(0);
+
+    const own = await searchDocumentText({
+      userUuid: userA.userId,
+      query: 'oxidative phosphorylation',
+      limit: 3,
+    });
+    expect(own.map((hit) => hit.documentUuid)).toContain(documentUuid);
+
+    // Keyword search is explicit about the user: the connection bypasses RLS.
+    const foreign = await searchDocumentText({
+      userUuid: userB.userId,
+      query: 'oxidative phosphorylation',
+      limit: 3,
+    });
+    expect(foreign).toHaveLength(0);
+
+    // A question-shaped query still matches (the OR fallback).
+    const question = await searchDocumentText({
+      userUuid: userA.userId,
+      query: 'what do mitochondria do in a cell',
+      limit: 3,
+    });
+    expect(question.map((hit) => hit.documentUuid)).toContain(documentUuid);
   });
 
   it('enforces isolation in Postgres itself (RLS, not just the route)', async () => {

@@ -43,6 +43,13 @@
       "when": 1794918911685,
       "tag": "0005_productive_next_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794925672212,
+      "tag": "0006_rainy_chimera",
+      "breakpoints": true
     }
   ]
 }

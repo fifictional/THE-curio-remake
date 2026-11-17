@@ -14,11 +14,11 @@
 import type { Context } from 'hono';
 
 import { embed, hasAiKey } from '../ai';
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 
-import { ownerDb } from '../db/owner-client';
+import { asUser } from '../db/scope';
 import { documents } from '../db/schema';
-import { indexDocumentText } from '../document-index';
+import { indexDocumentText, searchDocumentText } from '../document-index';
 import { ensureCollection, search, upsert } from '../qdrant';
 import { extractText } from './documents';
 import type { HonoEnv } from '../types';
@@ -34,24 +34,28 @@ export function createRagRoutes(): RagRoutes {
   const searchHandler = async (c: Context<HonoEnv>): Promise<Response> => {
     const identity = c.var.identity as Identity;
     if (!identity) return c.json({ success: false, error: 'Not signed in' }, 401);
-    if (!hasAiKey() && process.env.RAG_OFFLINE !== '1') {
-      return c.json(
-        { success: false, error: 'OPENAI_API_KEY not set — retrieval unavailable' },
-        503,
-      );
-    }
-
     const q = c.req.query('q')?.trim();
     if (!q) return c.json({ success: false, error: 'q is required' }, 400);
 
     const chatUuid = c.req.query('chat') ?? undefined;
     const limit = Math.min(20, Number(c.req.query('limit') ?? 5) || 5);
 
+    // Without a key, search the document chunks with Postgres full text: real
+    // relevance, no provider. With a key, vectors for chat messages as before.
+    if (!hasAiKey()) {
+      try {
+        const hits = await searchDocumentText({ userUuid: identity.sub, query: q, limit });
+        return c.json({ success: true, mode: 'text', hits });
+      } catch (err) {
+        return c.json({ success: false, error: (err as Error).message }, 502);
+      }
+    }
+
     try {
       await ensureCollection();
       const vector = await embed(q);
       const hits = await search(vector, { userUuid: identity.sub, chatUuid, limit });
-      return c.json({ success: true, hits });
+      return c.json({ success: true, mode: 'vector', hits });
     } catch (err) {
       return c.json({ success: false, error: (err as Error).message }, 502);
     }
@@ -62,11 +66,9 @@ export function createRagRoutes(): RagRoutes {
     userId: string,
     documentUuid: string,
   ): Promise<number | null> => {
-    const [row] = await ownerDb
-      .select()
-      .from(documents)
-      .where(and(eq(documents.documentUuid, documentUuid), eq(documents.userUuid, userId)))
-      .limit(1);
+    const [row] = await asUser(userId, (db) =>
+      db.select().from(documents).where(eq(documents.documentUuid, documentUuid)).limit(1),
+    );
 
     if (!row) return null;
 
@@ -102,11 +104,13 @@ export function createRagRoutes(): RagRoutes {
         }
 
         const limit = Math.min(200, Number(body.limit ?? 50) || 50);
-        const rows = await ownerDb
-          .select({ documentUuid: documents.documentUuid })
-          .from(documents)
-          .where(and(eq(documents.userUuid, identity.sub), isNotNull(documents.key)))
-          .limit(limit);
+        const rows = await asUser(identity.sub, (db) =>
+          db
+            .select({ documentUuid: documents.documentUuid })
+            .from(documents)
+            .where(isNotNull(documents.key))
+            .limit(limit),
+        );
 
         let indexed = 0;
         let withText = 0;

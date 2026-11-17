@@ -11,6 +11,7 @@
 | File storage | **Local disk** | `.local/files/`. S3 later if hosting. |
 | v0 scope | **Chat + documents/library** | Upload, local pipeline, summaries. No Datalab layout AI. |
 | AI keys | **User-provided, local** | `OPENAI_API_KEY` required (chat + embeddings); Anthropic/Gemini optional. |
+| Roles | **owner / service / app** | `db:rls` creates `curio_app` (NOBYPASSRLS, requests) and `curio_service` (BYPASSRLS, worker + indexer). The owner runs migrations only and is never mounted into the runtime. |
 | Hosting | **Not decided** | Local first. |
 | Desktop | **Later** | Design for it by keeping SQL portable. |
 

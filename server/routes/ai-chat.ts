@@ -5,12 +5,15 @@
  * GraphQL client → AppSync → DynamoDB.
  *
  * Now: browser → Hono → RLS-scoped Postgres (+ best-effort Qdrant indexing).
+ * Answers are grounded on the caller's own documents: keyword search via
+ * Postgres full text, or vector search when an embedding key is set.
  */
 
 import type { Context, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 
 import { chat, embed, hasAiKey } from '../ai';
+import { searchDocumentText } from '../document-index';
 import { upsert, searchDocumentChunks, type DocumentChunkHit } from '../qdrant';
 import { getValidatedBody, validateBody } from '../middleware/validate';
 import type { HonoEnv } from '../types';
@@ -118,9 +121,13 @@ export function createAiChatRoute(deps: AiChatDeps = {}): AiChatRoute {
     const retrieve =
       deps.retrieve ??
       (async ({ userUuid, query }: { userUuid: string; query: string }) => {
-        // Without a provider the vectors are deterministic noise, so retrieval
-        // is off unless RAG_OFFLINE=1 (local wiring checks only — never in prod).
-        if (!hasAiKey() && process.env.RAG_OFFLINE !== '1') return [];
+        // No key → keyword search. It is not a downgrade for study material:
+        // Postgres full text handles "photosynthesis light reactions" fine, and
+        // it needs no provider. With a key, vectors add paraphrase matching.
+        if (!hasAiKey()) {
+          return searchDocumentText({ userUuid, query, limit: RAG_LIMIT });
+        }
+
         const vector = await embed(query);
         return searchDocumentChunks(vector, {
           userUuid,
