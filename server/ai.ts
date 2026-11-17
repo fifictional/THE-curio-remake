@@ -58,8 +58,32 @@ export async function chat(turns: ChatTurn[]): Promise<string> {
   return json.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
+/**
+ * Deterministic stand-in for an embedding: same text → same vector, so the
+ * retrieval wire format (index → filter → search) is exercisable offline.
+ * Semantic quality is NOT claimed — that needs a real key. Same convention as
+ * `chat()` returning a mock reply, and as `qdrant:smoke` already documents.
+ */
+export function pseudoVector(text: string): number[] {
+  let seed = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    seed ^= text.charCodeAt(i);
+    seed = Math.imul(seed, 16777619) >>> 0;
+  }
+
+  const vector: number[] = [];
+  for (let i = 0; i < EMBED_DIMS; i += 1) {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    seed >>>= 0;
+    vector.push((seed / 0xffffffff) * 2 - 1);
+  }
+  return vector;
+}
+
 export async function embed(text: string): Promise<number[]> {
-  if (!hasAiKey()) throw new Error('OPENAI_API_KEY not set');
+  if (!hasAiKey()) return pseudoVector(text);
 
   const res = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',

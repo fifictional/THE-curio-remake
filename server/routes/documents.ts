@@ -24,6 +24,7 @@ import { chat, hasAiKey } from '../ai';
 import { ownerDb } from '../db/owner-client';
 import { documentSummaries, documents, spaces, tasks } from '../db/schema';
 import { getValidatedBody, validateBody } from '../middleware/validate';
+import { indexDocumentText } from '../document-index';
 import { extractPdfText, looksLikePdf, MAX_TEXT_CHARS } from '../pdf';
 import type { HonoEnv } from '../types';
 
@@ -198,9 +199,33 @@ export async function processPendingTasksOnce(): Promise<{ processed: number }> 
         });
       }
 
+      /*
+       * Retrieval index. Best-effort: a document is still usable without
+       * vectors, and Qdrant must never turn a finished summary into a failed
+       * task. The old stack did this in an SQS/ECS fan-out; here it is inline.
+       */
+      let indexed = 0;
+      if (text && document) {
+        try {
+          indexed = await indexDocumentText({
+            userUuid: document.userUuid,
+            documentUuid: document.documentUuid,
+            documentName: document.fileName ?? 'Document',
+            text,
+          });
+        } catch (err) {
+          console.warn('[worker] indexing skipped:', (err as Error).message);
+        }
+      }
+
       await ownerDb
         .update(tasks)
-        .set({ status: 'COMPLETED', progress: 100, result: 'summary', updatedAt: new Date() })
+        .set({
+          status: 'COMPLETED',
+          progress: 100,
+          result: indexed > 0 ? `summary+${indexed}chunks` : 'summary',
+          updatedAt: new Date(),
+        })
         .where(eq(tasks.taskUuid, task.taskUuid));
 
       processed += 1;
