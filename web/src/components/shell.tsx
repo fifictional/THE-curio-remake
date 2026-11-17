@@ -22,12 +22,13 @@ export function Shell({
     >
       <header className="flex items-center justify-between gap-3 py-5">
         <div className="flex items-baseline gap-4">
-          <Link to="/" className="font-roca text-xl text-foreground">
+          <Link to="/" search={{ chat: undefined }} className="font-roca text-xl text-foreground">
             Curio
           </Link>
           <nav className="flex items-center gap-3 text-sm text-headers">
             <Link
               to="/"
+              search={{ chat: undefined }}
               activeOptions={{ exact: true }}
               activeProps={{ className: 'text-foreground font-medium' }}
               className="hover:text-foreground"

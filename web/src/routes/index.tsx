@@ -9,7 +9,12 @@ import { loadChatPage } from '../server/api';
  * a slow connection before the conversation appears.
  */
 export const Route = createFileRoute('/')({
-  loader: () => loadChatPage(),
+  // `?chat=<uuid>` deep-links a conversation (used by the space pages).
+  validateSearch: (search: Record<string, unknown>) => ({
+    chat: typeof search.chat === 'string' && search.chat ? search.chat : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ chat: search.chat }),
+  loader: ({ deps }) => loadChatPage({ data: { chatUuid: deps.chat } }),
   component: ChatPage,
 });
 

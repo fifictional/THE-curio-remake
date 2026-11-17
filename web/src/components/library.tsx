@@ -144,6 +144,24 @@ export function Library({
         </p>
       )}
 
+      {spaces.length > 0 && (
+        <div className="mt-6">
+          <p className="text-xs uppercase tracking-wide text-headers">Folders</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {spaces.map((space) => (
+              <Link
+                key={space.spaceUuid}
+                to="/spaces/$spaceId"
+                params={{ spaceId: space.spaceUuid }}
+                className="rounded-full border border-chat-panel-border bg-chat-panel px-3 py-1 text-sm text-foreground hover:border-curio-green/40"
+              >
+                {space.name || 'Untitled folder'}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="mt-6 text-xs uppercase tracking-wide text-headers">
         {documents.length} document{documents.length === 1 ? '' : 's'}
         {spaces.length ? ` · ${spaces.length} folder${spaces.length === 1 ? '' : 's'}` : ''}

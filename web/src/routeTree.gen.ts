@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
+import { Route as SpacesSpaceIdRouteImport } from './routes/spaces.$spaceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const DocumentsDocumentUuidRoute = DocumentsDocumentUuidRouteImport.update({
   path: '/documents/$documentUuid',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpacesSpaceIdRoute = SpacesSpaceIdRouteImport.update({
+  id: '/spaces/$spaceId',
+  path: '/spaces/$spaceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,30 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/library' | '/settings' | '/documents/$documentUuid'
+  fullPaths:
+    | '/'
+    | '/library'
+    | '/settings'
+    | '/documents/$documentUuid'
+    | '/spaces/$spaceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/library' | '/settings' | '/documents/$documentUuid'
-  id: '__root__' | '/' | '/library' | '/settings' | '/documents/$documentUuid'
+  to:
+    | '/'
+    | '/library'
+    | '/settings'
+    | '/documents/$documentUuid'
+    | '/spaces/$spaceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/library'
+    | '/settings'
+    | '/documents/$documentUuid'
+    | '/spaces/$spaceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +92,7 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   SettingsRoute: typeof SettingsRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
+  SpacesSpaceIdRoute: typeof SpacesSpaceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentsDocumentUuidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/spaces/$spaceId': {
+      id: '/spaces/$spaceId'
+      path: '/spaces/$spaceId'
+      fullPath: '/spaces/$spaceId'
+      preLoaderRoute: typeof SpacesSpaceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   SettingsRoute: SettingsRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
+  SpacesSpaceIdRoute: SpacesSpaceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

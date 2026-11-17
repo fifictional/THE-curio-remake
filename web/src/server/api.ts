@@ -24,8 +24,9 @@ export interface ChatPageData {
   messages: Message[];
 }
 
-export const loadChatPage = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<ChatPageData> => {
+export const loadChatPage = createServerFn({ method: 'GET' })
+  .validator((data: { chatUuid?: string }) => data)
+  .handler(async ({ data }): Promise<ChatPageData> => {
     const session = await apiFetch<{ user: SessionUser }>('/me');
     if (!session?.user) return { user: null, chatUuid: null, messages: [] };
 
@@ -34,7 +35,8 @@ export const loadChatPage = createServerFn({ method: 'GET' }).handler(
       body: JSON.stringify({ model: 'Chat', method: 'list', options: { limit: 20 } }),
     });
 
-    const chatUuid = chats?.data?.[0]?.chatUuid ?? null;
+    // A deep link wins; otherwise the most recent conversation.
+    const chatUuid = data.chatUuid ?? chats?.data?.[0]?.chatUuid ?? null;
     const messages = chatUuid
       ? ((await apiFetch<{ messages: Message[] }>(
           `/messages?chat=${encodeURIComponent(chatUuid)}`,
@@ -44,6 +46,59 @@ export const loadChatPage = createServerFn({ method: 'GET' }).handler(
     return { user: session.user, chatUuid, messages };
   },
 );
+
+export interface SpacePageData {
+  user: SessionUser | null;
+  space: SpaceRow | null;
+  chats: Chat[];
+  documents: DocumentRow[];
+}
+
+export const loadSpace = createServerFn({ method: 'GET' })
+  .validator((data: { spaceId: string }) => data)
+  .handler(async ({ data }): Promise<SpacePageData> => {
+    const session = await apiFetch<{ user: SessionUser }>('/me');
+    if (!session?.user) return { user: null, space: null, chats: [], documents: [] };
+
+    const space = await apiFetch<{ data: SpaceRow | null }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'Space',
+        method: 'get',
+        args: { spaceUuid: data.spaceId },
+      }),
+    });
+
+    if (!space?.data) return { user: session.user, space: null, chats: [], documents: [] };
+
+    const [chats, documents] = await Promise.all([
+      apiFetch<{ data: Chat[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Chat',
+          method: 'listChatBySpaceUuidAndCreatedAt',
+          args: { spaceUuid: data.spaceId },
+          options: { limit: 100 },
+        }),
+      }),
+      apiFetch<{ data: DocumentRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Document',
+          method: 'listDocumentBySpaceUuidAndCreatedAt',
+          args: { spaceUuid: data.spaceId },
+          options: { limit: 100 },
+        }),
+      }),
+    ]);
+
+    return {
+      user: session.user,
+      space: space.data,
+      chats: chats?.data ?? [],
+      documents: documents?.data ?? [],
+    };
+  });
 
 export interface LibraryData {
   user: SessionUser | null;
