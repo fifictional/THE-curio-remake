@@ -7,6 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import appCss from '../index.css?url';
+import { NotFound, RouteError } from '../components/states';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -19,6 +20,8 @@ export const Route = createRootRoute({
   }),
   shellComponent: RootDocument,
   component: RootComponent,
+  errorComponent: RouteError,
+  notFoundComponent: NotFound,
 });
 
 /**

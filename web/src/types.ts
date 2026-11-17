@@ -66,3 +66,13 @@ export interface QuizRow {
   lastTotal?: number | null;
   createdAt?: string | null;
 }
+
+export interface CitationRow {
+  chatCitationUuid: string;
+  chatUuid: string;
+  messageUuid: string;
+  type: string;
+  title: string;
+  url: string;
+  createdAt?: string | null;
+}

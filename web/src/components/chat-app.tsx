@@ -2,10 +2,11 @@ import { useState } from 'react';
 
 import { AuthCard } from './auth-card';
 import { Markdown } from '../lib/markdown';
-import type { Message, SessionUser } from '../types';
+import type { CitationRow, Message, SessionUser } from '../types';
 import {
   DEFAULT_CHAT,
   useAiChat,
+  useCitations,
   useMe,
   useMessages,
   useRagSearch,
@@ -23,12 +24,49 @@ import {
  * framer-motion installed here.
  */
 
+function Sources({ chatUuid, initial }: { chatUuid: string; initial: CitationRow[] }) {
+  const citations = useCitations(chatUuid, initial);
+
+  return (
+    <aside className="hidden w-80 shrink-0 lg:block">
+      <div className="sticky top-4 rounded-2xl border border-chat-panel-border bg-chat-panel p-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-headers">Sources</h2>
+        <p className="mt-1 text-[11px] text-headers">
+          Documents Curio used to answer in this conversation.
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {(citations.data ?? []).map((citation) => (
+            <a
+              key={citation.chatCitationUuid}
+              href={citation.url}
+              className="block rounded-lg border border-black/5 bg-white px-3 py-2 hover:border-curio-green/40"
+            >
+              <span className="block truncate text-sm text-foreground">{citation.title}</span>
+              <span className="text-[11px] text-headers">
+                {citation.type === 'document' ? 'Your document' : citation.type}
+              </span>
+            </a>
+          ))}
+          {(citations.data ?? []).length === 0 && (
+            <p className="text-sm text-headers">
+              No sources yet. Ask something about your documents and they will show up here.
+            </p>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function Chat({
   initialChatUuid,
   initialMessages,
+  initialCitations,
 }: {
   initialChatUuid: string | null;
   initialMessages: Message[];
+  initialCitations: CitationRow[];
 }) {
   const [chatUuid, setChatUuid] = useState(initialChatUuid ?? DEFAULT_CHAT);
   const [draft, setDraft] = useState('');
@@ -47,7 +85,7 @@ function Chat({
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-8">
+    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-8">
       <header className="flex items-center justify-between gap-3 py-5">
         <div className="flex items-baseline gap-3">
           <span className="font-roca text-xl text-foreground">Curio</span>
@@ -80,6 +118,7 @@ function Chat({
         </div>
       </header>
 
+      <div className="flex min-h-0 flex-1 gap-4">
       <main className="flex-1 rounded-2xl border border-chat-panel-border bg-chat-panel p-5">
         {messages.isLoading && <p className="text-sm text-headers">Loading…</p>}
         {messages.error && <p className="text-sm text-red-600">{messages.error.message}</p>}
@@ -130,6 +169,9 @@ function Chat({
           </p>
         )}
       </main>
+
+      <Sources chatUuid={chatUuid} initial={chatUuid === initialChatUuid ? initialCitations : []} />
+      </div>
 
       <div className="mt-4 flex items-center gap-2">
         <input
@@ -190,7 +232,12 @@ function Chat({
 export default function App({
   initial,
 }: {
-  initial: { user: SessionUser | null; chatUuid: string | null; messages: Message[] };
+  initial: {
+    user: SessionUser | null;
+    chatUuid: string | null;
+    messages: Message[];
+    citations: CitationRow[];
+  };
 }) {
   const me = useMe(initial.user);
 
@@ -200,6 +247,10 @@ export default function App({
   if (!me.data?.authenticated) return <AuthCard />;
 
   return (
-    <Chat initialChatUuid={initial.chatUuid} initialMessages={initial.messages} />
+    <Chat
+      initialChatUuid={initial.chatUuid}
+      initialMessages={initial.messages}
+      initialCitations={initial.citations}
+    />
   );
 }

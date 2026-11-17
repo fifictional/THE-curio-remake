@@ -7,7 +7,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Message, SessionUser } from './types';
+import type { CitationRow, Message, SessionUser } from './types';
 
 export type { Message };
 
@@ -94,7 +94,28 @@ export function useMessages(chatUuid: string | null, initial?: Message[]) {
     enabled: !!chatUuid,
     initialData: initial === undefined ? undefined : { messages: initial },
     initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
-    staleTime: 5_000,
+    // Same 4s cadence as the legacy app's polling stand-in for AppSync.
+    refetchInterval: 4_000,
+  });
+}
+
+export function useCitations(chatUuid: string | null, initial?: CitationRow[]) {
+  return useQuery({
+    queryKey: ['citations', chatUuid],
+    queryFn: () =>
+      json<{ data: CitationRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'ChatCitation',
+          method: 'listChatCitationByChatUuidAndCreatedAt',
+          args: { chatUuid },
+          options: { limit: 100 },
+        }),
+      }).then((r) => r.data ?? []),
+    enabled: !!chatUuid,
+    initialData: initial,
+    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    refetchInterval: 8_000,
   });
 }
 
@@ -106,7 +127,10 @@ export function useAiChat(chatUuid: string) {
         method: 'POST',
         body: JSON.stringify({ chatUuid, message }),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', chatUuid] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['messages', chatUuid] });
+      qc.invalidateQueries({ queryKey: ['citations', chatUuid] });
+    },
   });
 }
 

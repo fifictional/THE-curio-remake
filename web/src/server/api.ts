@@ -9,6 +9,7 @@ import { createServerFn } from '@tanstack/react-start';
 
 import type {
   Chat,
+  CitationRow,
   DocumentRow,
   DocumentSummaryRow,
   FlashcardRow,
@@ -28,13 +29,14 @@ export interface ChatPageData {
   user: SessionUser | null;
   chatUuid: string | null;
   messages: Message[];
+  citations: CitationRow[];
 }
 
 export const loadChatPage = createServerFn({ method: 'GET' })
   .validator((data: { chatUuid?: string }) => data)
   .handler(async ({ data }): Promise<ChatPageData> => {
     const session = await apiFetch<{ user: SessionUser }>('/me');
-    if (!session?.user) return { user: null, chatUuid: null, messages: [] };
+    if (!session?.user) return { user: null, chatUuid: null, messages: [], citations: [] };
 
     const chats = await apiFetch<{ data: Chat[] }>('/db', {
       method: 'POST',
@@ -51,7 +53,22 @@ export const loadChatPage = createServerFn({ method: 'GET' })
         ))?.messages ?? [])
       : [];
 
-    return { user: session.user, chatUuid, messages };
+    // Sources written by /aiChat, scoped to the chat by RLS.
+    const citations = chatUuid
+      ? ((
+          await apiFetch<{ data: CitationRow[] }>('/db', {
+            method: 'POST',
+            body: JSON.stringify({
+              model: 'ChatCitation',
+              method: 'listChatCitationByChatUuidAndCreatedAt',
+              args: { chatUuid },
+              options: { limit: 100 },
+            }),
+          })
+        )?.data ?? [])
+      : [];
+
+    return { user: session.user, chatUuid, messages, citations };
   },
 );
 
