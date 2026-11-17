@@ -39,6 +39,8 @@ Now:
 - The browser **never touches the database**. Every read/write goes through the API.
 - **Row-level security is enforced by Postgres**, not by route guards: 43 tables have `ENABLE + FORCE ROW LEVEL SECURITY`. Most are owner-scoped (`messages` and `chat_citations` via their chat, `document_summaries` via its document, `metadata` via its polymorphic target); six are read-only for everyone (partnerships, app_settings, mock_documents, bundles, exam_modules, youtube_videos); and **14 have no policy at all**, so only the owner role can touch them — `future_users` (PII), `batch_processes`, plus the twelve tables whose features were dropped (data migrated and kept, no app access).
 - The classification is asserted, not assumed: `server/rls.test.ts` fails if a table is added without being classified, if the world-readable set changes, if a policy stops referencing `app.user_id`, or if `curio_app` gains BYPASSRLS/ownership.
+- **Rate limiting**: in-memory sliding windows on the credential endpoints (20/min per IP), `/aiChat` (30 per 5 min per user), search, reindex, uploads and account deletion. 429 + `Retry-After`; `RATE_LIMIT_DISABLED=1` for tests. One process only — multi-process needs shared storage.
+- **Password reset** works through a mailer seam: `sendResetPassword` writes the link to `.local/reset-links.log`; replacing that function with a provider is the whole email integration.
 - **Roles are split three ways:** the **owner** (migrations, `db:rls`, seed — never given to the runtime), `curio_app` (`LOGIN NOBYPASSRLS`, request path) and `curio_service` (`LOGIN BYPASSRLS`, polling worker + indexer, acts for no single request). This matters twice: a superuser **bypasses RLS even with FORCE** (which silently disabled the scheme at first), and on managed Postgres the owner is *not* a superuser, so `FORCE RLS` applies to it — the worker would be rejected without a dedicated bypass role.
 - Request-path writes go through `asUser(userId)` rather than the owner connection, so they stay correct when the owner lacks superuser.
 - Every query runs inside `asUser(userId)` → a transaction that sets `app.user_id`, so the policies apply per request.
@@ -55,7 +57,9 @@ Now:
 | `POST /moveChat` | the ported production route (chat + flashcards + questions between spaces) |
 | `POST /rag/reindex`, `GET /rag/search` | Qdrant: embed + filtered vector search |
 | `POST /files`, `GET /files`, `DELETE /files` | local object storage |
-| `POST /documents` | create Document + PENDING Task |
+| `POST /documents` | create Document + PENDING Task (also `/api/documents`) |
+| `GET /account/export` | JSON dump of everything the caller owns |
+| `DELETE /account` | delete the account: vectors, files, then the row (cascades) |
 | `POST /db` | **the bridge** (see §6) |
 | `POST /log` | dev-only browser error relay |
 

@@ -137,9 +137,10 @@ Screens: **chat**, **library** (`/library` — search, real documents, upload) a
 **document** (`/documents/<uuid>` — metadata, "open file", rendered summary). All
 three are server-rendered and gated by the session card.
 
-Screens so far: **chat** (`/?chat=<uuid>` deep-links a conversation), **library**,
-**document** (summary + read-only study material), **spaces** (`/spaces/<id>`) and
-**settings**.
+Screens so far: **chat** (`/?chat=<uuid>` deep-links a conversation, with a Sources
+panel and 4s polling), **library**, **document** (summary + read-only study
+material), **spaces** (`/spaces/<id>`), **settings** (export + delete account) and
+**forgot/reset password**. All server-rendered, all gated by the session card.
 
 Two proxy/route traps, both already paid for: the Vite dev proxy must list every API
 path (a missing entry is a 404 from Vite, not the API), but it must **not** cover
