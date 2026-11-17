@@ -7,13 +7,21 @@ export default defineConfig({
   plugins: [tailwindcss(), tanstackStart(), viteReact()],
   server: {
     port: 5173,
-    proxy: {
-      '/api': 'http://localhost:3101',
-      '/me': 'http://localhost:3101',
-      '/messages': 'http://localhost:3101',
-      '/aiChat': 'http://localhost:3101',
-      '/moveChat': 'http://localhost:3101',
-      '/rag': 'http://localhost:3101',
-    },
+    // Everything the API owns. Keep in sync with server/app.ts routes:
+    // a missing entry is a 404 from the Vite server, not from the API.
+    proxy: Object.fromEntries(
+      [
+        '/api',
+        '/me',
+        '/messages',
+        '/aiChat',
+        '/moveChat',
+        '/rag',
+        '/files',
+        '/documents',
+        '/db',
+        '/log',
+      ].map((path) => [path, 'http://localhost:3101']),
+    ),
   },
 });

@@ -133,8 +133,16 @@ Messages render **markdown and maths** (`web/src/lib/markdown.tsx`): react-markd
 `\(…\)` / `\[…\]` delimiters. KaTeX instead of MathJax on purpose — MathJax v3
 needs every typeset call serialised, which was a real bug on the `ui/` side.
 
-Still missing in `web/`: the document/library screens, and parity with `ui/` per
-ADR 0004.
+Screens: **chat**, **library** (`/library` — search, real documents, upload) and
+**document** (`/documents/<uuid>` — metadata, "open file", rendered summary). All
+three are server-rendered and gated by the session card.
+
+The Vite dev proxy lists every API path (`/api`, `/me`, `/messages`, `/aiChat`,
+`/moveChat`, `/rag`, `/files`, `/documents`, `/db`, `/log`) — a missing entry is a
+404 from Vite, not from the API, which is how the first upload attempt failed.
+
+Still missing in `web/`: flashcards/quiz tabs, the spaces screens, and full parity
+with `ui/` per ADR 0004.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 

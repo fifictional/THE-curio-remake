@@ -7,7 +7,14 @@
 
 import { createServerFn } from '@tanstack/react-start';
 
-import type { Chat, Message, SessionUser } from '../types';
+import type {
+  Chat,
+  DocumentRow,
+  DocumentSummaryRow,
+  Message,
+  SessionUser,
+  SpaceRow,
+} from '../types';
 import { apiFetch } from './fetch.server';
 
 export interface ChatPageData {
@@ -36,3 +43,79 @@ export const loadChatPage = createServerFn({ method: 'GET' }).handler(
     return { user: session.user, chatUuid, messages };
   },
 );
+
+export interface LibraryData {
+  user: SessionUser | null;
+  documents: DocumentRow[];
+  spaces: SpaceRow[];
+}
+
+export const loadLibrary = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<LibraryData> => {
+    const session = await apiFetch<{ user: SessionUser }>('/me');
+    if (!session?.user) return { user: null, documents: [], spaces: [] };
+
+    const [documents, spaces] = await Promise.all([
+      apiFetch<{ data: DocumentRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Document',
+          method: 'list',
+          args: {},
+          options: { limit: 200 },
+        }),
+      }),
+      apiFetch<{ data: SpaceRow[] }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Space', method: 'list', options: { limit: 100 } }),
+      }),
+    ]);
+
+    return {
+      user: session.user,
+      documents: documents?.data ?? [],
+      spaces: spaces?.data ?? [],
+    };
+  },
+);
+
+export interface DocumentPageData {
+  user: SessionUser | null;
+  document: DocumentRow | null;
+  summary: DocumentSummaryRow | null;
+}
+
+export const loadDocument = createServerFn({ method: 'GET' })
+  .validator((data: { documentUuid: string }) => data)
+  .handler(async ({ data }): Promise<DocumentPageData> => {
+    const session = await apiFetch<{ user: SessionUser }>('/me');
+    if (!session?.user) return { user: null, document: null, summary: null };
+
+    const document = await apiFetch<{ data: DocumentRow | null }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'Document',
+        method: 'get',
+        args: { documentUuid: data.documentUuid },
+      }),
+    });
+
+    if (!document?.data) return { user: session.user, document: null, summary: null };
+
+    // RLS scopes this to the caller's documents; the bridge sorts newest first.
+    const summaries = await apiFetch<{ data: DocumentSummaryRow[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'DocumentSummary',
+        method: 'listDocumentSummaryByDocumentUuidAndCreatedAt',
+        args: { documentUuid: data.documentUuid },
+        options: { limit: 1 },
+      }),
+    });
+
+    return {
+      user: session.user,
+      document: document.data,
+      summary: summaries?.data?.[0] ?? null,
+    };
+  });
