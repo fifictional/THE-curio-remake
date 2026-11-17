@@ -340,6 +340,31 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
     }
   });
 
+  it('defaults bridge creates to the caller, and reports bad ids as 400', async () => {
+    // A new client has no reason to know its own `user_uuid` column; omitting it
+    // used to violate the RLS `with check` and fail as a 500.
+    const created = await app.request('/db', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ model: 'Chat', method: 'create', args: { name: 'no owner passed' } }),
+    });
+    const createdBody = (await created.json()) as {
+      data: { chatUuid: string; userUuid: string } | null;
+    };
+    expect(created.status).toBe(200);
+    expect(createdBody.data?.userUuid).toBe(userA.userId);
+
+    // A malformed identifier must not abort the request transaction: that made
+    // every caught error escape as a 500 from the global error handler.
+    const bad = await app.request('/db', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ model: 'Chat', method: 'get', args: { chatUuid: 'abc' } }),
+    });
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { data: unknown }).data).toBeNull();
+  });
+
   it('serves a kept user-owned model through the bridge, RLS intact', async () => {
     const deckUuid = crypto.randomUUID();
     const partnershipUuid = crypto.randomUUID();

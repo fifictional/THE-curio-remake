@@ -249,17 +249,33 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const q = db as any;
 
-    const run = async (): Promise<unknown> => {
+    /*
+     * Each bridge call runs inside a SAVEPOINT (a nested transaction). Without
+     * it, a failed statement aborts the request transaction and the JSON error
+     * we return from `catch` is lost: the commit then throws and Hono answers
+     * 500. With the savepoint the transaction stays usable and the caller gets
+     * the error it should.
+     */
+    const run = async (query: any = q): Promise<unknown> => {
       if (body.method === 'get') {
         const where = buildWhere(table, args);
-        const rows = (await q.select().from(table).where(where).limit(1)) as unknown[];
+        const rows = (await query.select().from(table).where(where).limit(1)) as unknown[];
         return rows[0] ?? null;
       }
 
       if (body.method === 'create') {
         const values: Record<string, unknown> = onlyColumns(args);
         if (!values[def.pk]) values[def.pk] = crypto.randomUUID();
-        const rows = (await q.insert(table).values(values).returning()) as unknown[];
+        /*
+         * Ownership defaults to the caller. The policies require
+         * `user_uuid = app.user_id`, so a create that omits it (a new client
+         * that has no reason to know its own column) used to fail with an RLS
+         * violation instead of doing the obvious thing.
+         */
+        for (const column of ['userUuid', 'ownerUuid', 'userId']) {
+          if (column in columnMap && values[column] == null) values[column] = identity.sub;
+        }
+        const rows = (await query.insert(table).values(values).returning()) as unknown[];
         return rows[0];
       }
 
@@ -267,7 +283,7 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
         const { [def.pk]: pkValue, ...rawRest } = args;
         const rest = onlyColumns(rawRest);
         const where = eq(table[def.pk] as never, pkValue as never);
-        const rows = (await q
+        const rows = (await query
           .update(table)
           .set({ ...rest, updatedAt: new Date() })
           .where(where)
@@ -278,7 +294,7 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
       if (body.method === 'delete') {
         const { [def.pk]: pkValue, ...rest } = args;
         const where = buildWhere(table, { [def.pk]: pkValue, ...rest })!;
-        await q.delete(table).where(where);
+        await query.delete(table).where(where);
         return { [def.pk]: pkValue };
       }
 
@@ -293,13 +309,13 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
       const sortKey = generated.sortField ?? def.timestamps?.[0] ?? def.pk;
       const sortColumn = table[sortKey] ?? table[def.pk];
 
-      const base = q.select().from(table);
+      const base = query.select().from(table);
       const withWhere = where ? base.where(where) : base.where(sql`true`);
       return withWhere.orderBy(direction(sortColumn as never)).limit(limit);
     };
 
     try {
-      const data = await run();
+      const data = await q.transaction((tx: any) => run(tx));
       if (isRead) cacheSet(key, data);
       else cacheInvalidateModel(body.model);
 
@@ -334,7 +350,8 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
     } catch (err) {
       // A malformed uuid (a stale link, a typo) is a client error, not a 500.
       // Postgres reports it as 22P02 / invalid_text_representation.
-      const code = (err as { code?: string }).code;
+      const code =
+        (err as { code?: string }).code ?? (err as { cause?: { code?: string } }).cause?.code;
       if (code === '22P02') {
         return c.json({ data: null, errors: [{ message: 'Invalid identifier' }] }, 400);
       }
