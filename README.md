@@ -155,6 +155,28 @@ ADR 0004.
 
 Login after seeding: `local@curio.test` / `localpassword123`.
 
+## Verification
+
+Two sweeps, both self-cleaning (they create their own users, data and files, then
+delete the accounts, so the database is unchanged afterwards):
+
+```bash
+npm run verify:api     # 46 checks over HTTP: auth boundary, bridge, files,
+                       # retrieval, and the upload → worker → summary → citation path
+npm run verify:web     # browser checks for the new UI (needs it on :5173)
+npm run verify         # both
+```
+
+`verify:api` needs only the API (`npm start`) plus Postgres and Qdrant; it makes
+its own tiny PDF, so nothing has to be seeded. `verify:web` drives Playwright
+through `ui/` (the dependency lives there), signs up a throwaway account and
+checks: signed-out gates, empty states, bad ids as "not found", a chat round-trip,
+settings/export, then deletes the account. Set `SMOKE_EMAIL`/`SMOKE_PASSWORD` to
+also check the seeded data path.
+
+CI runs `verify:api` after the unit suite; the browser sweep stays local because it
+needs the UI servers.
+
 ## Smoke test (legacy UI on real data)
 
 Walks the migrated screens and fails on uncaught errors, console errors, 5xx or an

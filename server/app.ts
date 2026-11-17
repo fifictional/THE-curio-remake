@@ -21,6 +21,7 @@ import { handleDbRequest, modelCount } from './routes/db';
 import { deleteFile, downloadFile, uploadFile } from './routes/files';
 import { createDocument, createDocumentValidate } from './routes/documents';
 import { limits } from './middleware/rate-limit';
+import { requireAuth } from './middleware/require-auth';
 import { deleteAccount, exportAccount } from './routes/account';
 import type { HonoEnv } from './types';
 
@@ -132,34 +133,39 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   const messagesRoute = createMessagesRoute();
-  app.get('/messages', messagesRoute.list);
-  app.post('/messages', messagesRoute.createValidate, messagesRoute.create);
+  app.get('/messages', requireAuth, messagesRoute.list);
+  app.post('/messages', requireAuth, messagesRoute.createValidate, messagesRoute.create);
 
   const moveChat = createMoveChatRoute();
-  app.post('/moveChat', moveChat.validate, moveChat.handler);
+  app.post('/moveChat', requireAuth, moveChat.validate, moveChat.handler);
 
   const aiChat = createAiChatRoute(opts.aiChat);
-  app.post('/aiChat', limits.aiChat, aiChat.validate, aiChat.handler);
+  app.post('/aiChat', limits.aiChat, requireAuth, aiChat.validate, aiChat.handler);
 
   // Local object storage + document creation (the S3 + pipeline replacement).
-  app.post('/files', limits.upload, uploadFile);
-  app.get('/files', downloadFile);
-  app.delete('/files', deleteFile);
-  app.post('/documents', createDocumentValidate, createDocument);
+  app.post('/files', requireAuth, limits.upload, uploadFile);
+  app.get('/files', requireAuth, downloadFile);
+  app.delete('/files', requireAuth, deleteFile);
+  app.post('/documents', requireAuth, createDocumentValidate, createDocument);
   // Same handler under the API prefix: the new UI's own routes include
   // `/documents/<uuid>`, so its dev proxy cannot forward that prefix wholesale.
-  app.post('/api/documents', createDocumentValidate, createDocument);
+  app.post('/api/documents', requireAuth, createDocumentValidate, createDocument);
 
-  // The bridge: generic data endpoint for the original (legacy) UI.
+  /*
+   * The bridge answers anonymous callers itself, with `{data: []}`: several
+   * legacy hooks run before the session resolves and read `response.data.length`
+   * without checking the status, so a differently shaped 401 crashes the shell.
+   * That is why this one route deliberately has no `requireAuth`.
+   */
   app.post('/db', handleDbRequest);
   app.get('/db/health', (c) => c.json({ ok: true, models: modelCount }));
 
-  app.get('/account/export', exportAccount);
-  app.delete('/account', limits.account, deleteAccount);
+  app.get('/account/export', requireAuth, exportAccount);
+  app.delete('/account', requireAuth, limits.account, deleteAccount);
 
   const rag = createRagRoutes();
-  app.get('/rag/search', limits.ragSearch, rag.search);
-  app.post('/rag/reindex', limits.ragReindex, rag.reindex);
+  app.get('/rag/search', limits.ragSearch, requireAuth, rag.search);
+  app.post('/rag/reindex', limits.ragReindex, requireAuth, rag.reindex);
 
   return { app, calls };
 }

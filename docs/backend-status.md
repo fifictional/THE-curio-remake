@@ -96,10 +96,18 @@ Verified end to end: upload → task `COMPLETED 100` → summary row → visible
 
 ## 8. Tests + CI
 
-- **41 automated tests**: unit (ported routes, chunking, citation helpers, PDF dispatch),
+- **52 automated tests**: unit (ported routes, chunking, citation helpers, PDF dispatch),
   integration against real Postgres + Better Auth (two users, owner access, cross-user
   denial, RLS at the DB layer, aiChat persistence and citations), and a dedicated
   **RLS audit suite** (`server/rls.test.ts`).
+- **Two verification sweeps** outside vitest: `npm run verify:api` (46 HTTP checks:
+  auth boundary, bridge, files, retrieval, upload → worker → summary → citation) and
+  `npm run verify:web` (Playwright over the new UI: gates, empty states, bad ids, chat
+  round-trip, settings/export). Both create and delete their own accounts, so the
+  database is unchanged afterwards; CI runs the API sweep.
+- Anonymous requests now fail with 401 *before* body validation (`requireAuth`), so a
+  malformed payload cannot leak the request shape. `POST /db` is the deliberate
+  exception — it answers `{data: []}`, which the legacy shell depends on.
 - The audit suite makes the policy design assertable: every `public` table is either user
   data with RLS enabled + forced, or on a documented exemption list (the four auth tables
   and `import_quarantine`); every RLS table has a policy except the two owner-only ones;

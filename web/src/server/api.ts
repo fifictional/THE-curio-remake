@@ -44,9 +44,22 @@ export const loadChatPage = createServerFn({ method: 'GET' })
     });
 
     // A deep link wins; otherwise the most recent conversation.
-    const chatUuid: string | null = isUuid(data.chatUuid)
+    let chatUuid: string | null = isUuid(data.chatUuid)
       ? data.chatUuid
       : (chats?.data?.[0]?.chatUuid ?? null);
+
+    /*
+     * A brand-new account has no conversation, and the chat screen is where they
+     * land. Create the first one here rather than bouncing them to an empty
+     * screen: the bridge defaults ownership to the caller, so this is one call.
+     */
+    if (!chatUuid) {
+      const created = await apiFetch<{ data: { chatUuid?: string } | null }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Chat', method: 'create', args: { name: 'New chat' } }),
+      });
+      chatUuid = created?.data?.chatUuid ?? null;
+    }
     const messages = chatUuid
       ? ((await apiFetch<{ messages: Message[] }>(
           `/messages?chat=${encodeURIComponent(chatUuid)}`,

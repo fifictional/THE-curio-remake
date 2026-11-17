@@ -60,6 +60,18 @@ jobs:
       - name: Qdrant round-trip
         run: npm run qdrant:smoke
 
+      - name: Start the API
+        run: |
+          npm start > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3101/__hello > /dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:3101/__hello > /dev/null || { cat /tmp/api.log; exit 1; }
+
+      - name: API contract sweep (auth boundary, bridge, retrieval, pipeline)
+        run: npm run verify:api
+
   web:
     name: web (typecheck + build)
     runs-on: ubuntu-latest
