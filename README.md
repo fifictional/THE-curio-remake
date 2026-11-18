@@ -15,7 +15,7 @@ npm test
 ## Tests
 
 ```bash
-npm test          # 41 tests (integration skips without a DB)
+npm test          # 52 tests (integration skips without a DB)
 npm run qdrant:smoke
 ```
 
@@ -165,6 +165,7 @@ npm run verify:api     # 46 checks over HTTP: auth boundary, bridge, files,
                        # retrieval, and the upload → worker → summary → citation path
 npm run verify:web     # browser checks for the new UI (needs it on :5173)
 npm run verify         # both
+npm --prefix web test  # 11 unit tests for the web/ server loaders
 ```
 
 `verify:api` needs only the API (`npm start`) plus Postgres and Qdrant; it makes
