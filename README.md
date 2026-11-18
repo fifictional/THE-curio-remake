@@ -6,11 +6,14 @@ Replaces the Amplify + AppSync + Lambda + DynamoDB stack.
 ## Run
 
 ```bash
-cp .env.example .env      # add OPENAI_API_KEY
-npm run db:up             # postgres + qdrant in docker
-npm run dev               # http://localhost:3101
+cp .env.example .env      # OPENAI_API_KEY is optional: retrieval and the pipeline work without it
+npm run db:up             # postgres:5433 + qdrant:6433
+npm run db:migrate && npm run db:rls
+npm run dev:all           # API :3101 + new UI :5173
 npm test
 ```
+
+Docs start at [`docs/README.md`](docs/README.md).
 
 ## Tests
 
