@@ -21,7 +21,7 @@
 import { DynamoDBClient, DescribeTableCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { createWriteStream } from 'node:fs';
-import { mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const REGION = process.env.AWS_REGION ?? 'eu-west-2';
@@ -147,7 +147,6 @@ async function main() {
 
   await mkdir(args.out, { recursive: true });
   const checkpointPath = join(args.out, '.checkpoints.json');
-  const checkpoints = await readJson(checkpointPath, {});
 
   const client = new DynamoDBClient({ region: REGION });
   const suffix = BACKENDS[args.env];

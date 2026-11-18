@@ -35,6 +35,8 @@ export async function extractPdfText(buffer: Uint8Array): Promise<string | null>
     // Strip control characters here: they would poison the summary insert, the
     // chunk insert and the FTS index alike.
     const flat = String(text ?? '')
+      // NUL and friends are invalid in Postgres text; stripping them is the point.
+      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
       .replace(/\s+/g, ' ')
       .trim();

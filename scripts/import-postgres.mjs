@@ -30,7 +30,6 @@ const RAW = (() => {
   return i > -1 ? process.argv[i + 1] : 'docs/migration/raw';
 })();
 const TRUNCATE = args.has('--truncate');
-const VERIFY_ONLY = args.has('--verify-only');
 
 const DATABASE_URL =
   process.env.DATABASE_URL_OWNER ?? 'postgres://curio:curio@localhost:5433/curio';

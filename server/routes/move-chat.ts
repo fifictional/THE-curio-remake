@@ -14,7 +14,6 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 
-import type { HonoDataClient } from '../data-client';
 import { getValidatedBody, validateBody } from '../middleware/validate';
 import type { HonoEnv } from '../types';
 

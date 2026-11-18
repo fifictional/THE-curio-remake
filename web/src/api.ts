@@ -22,7 +22,7 @@ export const DEFAULT_CHAT = '44444444-4444-4444-8444-444444444444';
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'content-type': 'application/json', ...init?.headers },
   });
   const body = (await res.json().catch(() => ({}))) as T;
   if (!res.ok) {
@@ -48,7 +48,7 @@ export function useMe(initial?: SessionUser | null) {
       initial === undefined
         ? undefined
         : ({ authenticated: !!initial, user: initial ?? undefined } as Me),
-    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    initialDataUpdatedAt: initial === undefined ? undefined : () => Date.now(),
     staleTime: 30_000,
   });
 }
@@ -93,7 +93,7 @@ export function useMessages(chatUuid: string | null, initial?: Message[]) {
     select: (d) => d.messages,
     enabled: !!chatUuid,
     initialData: initial === undefined ? undefined : { messages: initial },
-    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    initialDataUpdatedAt: initial === undefined ? undefined : () => Date.now(),
     // Same 4s cadence as the legacy app's polling stand-in for AppSync.
     refetchInterval: 4_000,
   });
@@ -114,7 +114,7 @@ export function useCitations(chatUuid: string | null, initial?: CitationRow[]) {
       }).then((r) => r.data ?? []),
     enabled: !!chatUuid,
     initialData: initial,
-    initialDataUpdatedAt: initial === undefined ? undefined : Date.now(),
+    initialDataUpdatedAt: initial === undefined ? undefined : () => Date.now(),
     refetchInterval: 8_000,
   });
 }

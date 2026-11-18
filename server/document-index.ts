@@ -40,6 +40,7 @@ export function chunkText(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERL
   // Control characters (NUL included) are invalid in Postgres text; drop them
   // before they reach either index.
   const clean = text
+    // eslint-disable-next-line no-control-regex -- stripping control bytes is the point
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .replace(/\s+/g, ' ')
     .trim();

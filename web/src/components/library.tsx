@@ -89,14 +89,6 @@ export function Library({
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useUploadDocument(user?.sub ?? null);
 
-  if (!user) {
-    return (
-      <Shell user={null}>
-        <AuthCard />
-      </Shell>
-    );
-  }
-
   const documents = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return initialDocuments;
@@ -104,6 +96,15 @@ export function Library({
       (d.fileName ?? '').toLowerCase().includes(needle),
     );
   }, [initialDocuments, query]);
+
+  // Hooks first: an early return above them would break the rules of hooks.
+  if (!user) {
+    return (
+      <Shell user={null}>
+        <AuthCard />
+      </Shell>
+    );
+  }
 
   return (
     <Shell user={user} wide>

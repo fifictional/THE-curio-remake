@@ -11,7 +11,6 @@
  */
 
 import { sql as drizzleSql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 
 import { db as baseDb } from './client';
 import * as schema from './schema';

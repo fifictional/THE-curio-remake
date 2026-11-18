@@ -36,7 +36,6 @@ import {
   tasks,
   userActionLogs,
   userRequests,
-  users,
 } from './db/schema';
 
 const SPACE_OLD = '22222222-2222-4222-8222-222222222222';

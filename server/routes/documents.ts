@@ -131,6 +131,7 @@ export async function extractText(key: string): Promise<string | null> {
     if (buffer.byteLength > 2_000_000) return null;
     const text = buffer.toString('utf8');
     // Heuristic: reject binary files by their printable-character ratio.
+    // eslint-disable-next-line no-control-regex -- stripping control bytes is the point
     const printable = text.replace(/[^\x09\x0a\x0d\x20-\x7e]/g, '');
     if (printable.length < text.length * 0.9) return null;
     return text.slice(0, MAX_TEXT_CHARS);

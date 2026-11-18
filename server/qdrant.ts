@@ -19,7 +19,7 @@ export const DOC_COLLECTION = process.env.QDRANT_DOC_COLLECTION ?? 'document_chu
 async function req(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${URL}${path}`, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'content-type': 'application/json', ...init?.headers },
   });
   return res;
 }

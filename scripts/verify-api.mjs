@@ -20,7 +20,7 @@ const check = (name, ok, detail = '') => {
 };
 
 const json = async (path, init = {}, cookie) => {
-  const headers = { origin: API, ...(init.headers ?? {}) };
+  const headers = { origin: API, ...init.headers };
   if (cookie) headers.cookie = cookie;
   if (init.body && typeof init.body === 'string') headers['content-type'] ??= 'application/json';
 
