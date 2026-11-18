@@ -14,7 +14,9 @@ export default defineConfig({
     proxy: Object.fromEntries(
       [
         '/api',
-        '/me',
+        // Exact match only: `/me` as a prefix also swallowed `/metadata/...`,
+        // which is an app route, and the API answered 404 for it.
+        '^/me(?:\\?.*)?$',
         '/messages',
         '/aiChat',
         '/moveChat',

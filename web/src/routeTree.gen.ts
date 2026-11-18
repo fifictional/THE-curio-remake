@@ -16,6 +16,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
+import { Route as MetadataTargetIdRouteImport } from './routes/metadata.$targetId'
 import { Route as SpacesSpaceIdRouteImport } from './routes/spaces.$spaceId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const DocumentsDocumentUuidRoute = DocumentsDocumentUuidRouteImport.update({
   path: '/documents/$documentUuid',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetadataTargetIdRoute = MetadataTargetIdRouteImport.update({
+  id: '/metadata/$targetId',
+  path: '/metadata/$targetId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SpacesSpaceIdRoute = SpacesSpaceIdRouteImport.update({
   id: '/spaces/$spaceId',
   path: '/spaces/$spaceId',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
+  '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
+    | '/metadata/$targetId'
     | '/spaces/$spaceId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
+    | '/metadata/$targetId'
     | '/spaces/$spaceId'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
+    | '/metadata/$targetId'
     | '/spaces/$spaceId'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
+  MetadataTargetIdRoute: typeof MetadataTargetIdRoute
   SpacesSpaceIdRoute: typeof SpacesSpaceIdRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentsDocumentUuidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/metadata/$targetId': {
+      id: '/metadata/$targetId'
+      path: '/metadata/$targetId'
+      fullPath: '/metadata/$targetId'
+      preLoaderRoute: typeof MetadataTargetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/spaces/$spaceId': {
       id: '/spaces/$spaceId'
       path: '/spaces/$spaceId'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
+  MetadataTargetIdRoute: MetadataTargetIdRoute,
   SpacesSpaceIdRoute: SpacesSpaceIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -9,6 +9,7 @@
 
 import type {
   Chat,
+  MetadataRow,
   SubscriptionRow,
   CitationRow,
   DocumentRow,
@@ -292,4 +293,34 @@ export async function loadProfileData(): Promise<ProfilePageData> {
     profile: profile?.data ?? null,
     subscription: subscriptions?.data?.[0] ?? null,
   };
+}
+
+export interface MetadataPageData {
+  user: SessionUser | null;
+  targetUuid: string;
+  metadata: MetadataRow[];
+}
+
+export async function loadMetadataData(data: {
+  targetUuid: string;
+}): Promise<MetadataPageData> {
+  const session = await apiFetch<{ user: SessionUser }>('/me');
+  if (!session?.user) return { user: null, targetUuid: data.targetUuid, metadata: [] };
+  if (!isUuid(data.targetUuid)) {
+    return { user: session.user, targetUuid: data.targetUuid, metadata: [] };
+  }
+
+  // RLS scopes metadata by its target (a user's own flags, or a chat/document
+  // they own), so this list is already limited to what the caller may see.
+  const rows = await apiFetch<{ data: MetadataRow[] }>('/db', {
+    method: 'POST',
+    body: JSON.stringify({
+      model: 'Metadata',
+      method: 'listMetadataByTargetUuidAndCreatedAt',
+      args: { targetUuid: data.targetUuid },
+      options: { limit: 200 },
+    }),
+  });
+
+  return { user: session.user, targetUuid: data.targetUuid, metadata: rows?.data ?? [] };
 }

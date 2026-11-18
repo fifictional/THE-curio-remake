@@ -88,3 +88,12 @@ export interface SubscriptionRow {
   currentPeriodEnd?: string | null;
   cancelledAt?: string | null;
 }
+
+export interface MetadataRow {
+  metadataUuid: string;
+  targetUuid?: string | null;
+  targetType?: string | null;
+  name?: string | null;
+  value?: string | null;
+  createdAt?: string | null;
+}

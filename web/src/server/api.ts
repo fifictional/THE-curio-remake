@@ -13,12 +13,14 @@ import {
   loadChatPageData,
   loadDocumentData,
   loadLibraryData,
+  loadMetadataData,
   loadProfileData,
   loadSettingsData,
   loadSpaceData,
   type ChatPageData,
   type DocumentPageData,
   type LibraryData,
+  type MetadataPageData,
   type ProfilePageData,
   type SettingsData,
   type SpacePageData,
@@ -28,6 +30,7 @@ export type {
   ChatPageData,
   DocumentPageData,
   LibraryData,
+  MetadataPageData,
   ProfilePageData,
   SettingsData,
   SpacePageData,
@@ -56,3 +59,7 @@ export const loadSettings = createServerFn({ method: 'GET' }).handler(
 export const loadProfile = createServerFn({ method: 'GET' }).handler(
   (): Promise<ProfilePageData> => loadProfileData(),
 );
+
+export const loadMetadata = createServerFn({ method: 'GET' })
+  .validator((data: { targetUuid: string }) => data)
+  .handler(({ data }): Promise<MetadataPageData> => loadMetadataData(data));

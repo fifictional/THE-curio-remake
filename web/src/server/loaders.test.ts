@@ -15,6 +15,7 @@ const {
   loadChatPageData: loadChatPage,
   loadDocumentData: loadDocument,
   loadLibraryData: loadLibrary,
+  loadMetadataData: loadMetadata,
   loadProfileData: loadProfile,
   loadSettingsData: loadSettings,
   loadSpaceData: loadSpace,
@@ -211,5 +212,21 @@ describe('loadProfile', () => {
     });
 
     expect((await loadProfile()).subscription).toBeNull();
+  });
+});
+
+describe('loadMetadata', () => {
+  it('skips the query for a malformed target', async () => {
+    mockBridge({});
+    const data = await loadMetadata({ targetUuid: 'nope' });
+    expect(data.metadata).toEqual([]);
+    expect(apiFetch.mock.calls.map((c) => String(c[0]))).not.toContain('/db');
+  });
+
+  it('returns the rows for the target', async () => {
+    mockBridge({ Metadata: { data: [{ metadataUuid: 'm1', name: 'subjectId' }] } });
+    const data = await loadMetadata({ targetUuid: DOC });
+    expect(data.metadata).toHaveLength(1);
+    expect(data.metadata[0].name).toBe('subjectId');
   });
 });
