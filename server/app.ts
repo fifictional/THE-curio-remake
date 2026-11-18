@@ -8,7 +8,10 @@
  *   - `auth` can be disabled for unit tests, which keeps them hermetic.
  */
 
+import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+
+import { serviceDb } from './db/service-client';
 
 import { auth } from './auth';
 import { createFakeDataClient, type RecordedCall } from './fake-data';
@@ -93,6 +96,28 @@ export function createApp(opts: AppOptions = {}) {
 
   // Better Auth endpoints: /api/auth/sign-up/email, /sign-in/email, /sign-out, /get-session
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+  /*
+   * Platform health check: does it answer, and can it reach the database?
+   * Unauthenticated on purpose — a health probe cannot hold a session cookie —
+   * and it exposes nothing but booleans.
+   */
+  app.get('/health', async (c) => {
+    const db = await serviceDb
+      .execute(sql`select 1`)
+      .then(() => true)
+      .catch(() => false);
+
+    return c.json(
+      {
+        ok: db,
+        db,
+        commit: process.env.GIT_COMMIT ?? null,
+        uptimeSeconds: Math.round(process.uptime()),
+      },
+      db ? 200 : 503,
+    );
+  });
 
   app.get('/__hello', (c) =>
     c.json({

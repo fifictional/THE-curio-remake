@@ -9,6 +9,7 @@ Start here. Everything else is detail.
 | [`decisions.md`](decisions.md) | you want to know *why* something is the way it is, and what was deliberately dropped |
 | [`backend-status.md`](backend-status.md) | you want the current state: what works, what is explicitly not done |
 | [`open-decisions.md`](open-decisions.md) | you want to know what still needs a human answer, with options and a recommendation |
+| [`deploy.md`](deploy.md) | you are putting this somewhere: topology, env vars, first deploy, rollback |
 | [`migration-runbook.md`](migration-runbook.md) | you are moving real DynamoDB/S3 data, or provisioning production roles |
 
 ## Reference
