@@ -102,8 +102,40 @@ npm run migrate:adopt -- --email test@curio.to --password localpass123
 ```
 
 Then sign in at `http://localhost:3300/signin` and the app shows the migrated
-documents, chats and flashcards. This is a local convenience, **not** the
-production password strategy.
+documents, chats and flashcards. This is a local convenience; the production
+strategy is a forced reset (below).
+
+## 2e. Passwords at cutover: forced reset
+
+Decided 2026-11-18 (see `decisions.md`). Cognito stores its own hashes and Better
+Auth cannot verify them, so **no migrated user has a working password** —
+`accounts` has no `credential` row for ~104 of the 107 dev users (4 of those have a
+placeholder `@import.invalid` email and cannot self-serve at all).
+
+What the product does:
+
+- the sign-in screen says plainly that passwords were not carried over and links to
+  the reset form (`/forgot`), so a failed sign-in is not a dead end
+- the reset flow works for accounts with **no credential row**: Better Auth creates
+  it on reset (verified end to end against a credential-less user — reset, then
+  sign-in with the new password succeeded)
+- reset links go to `.local/reset-links.log` locally; at cutover the same
+  `sendResetPassword` function sends real mail once a provider is chosen
+
+Cutover comms (comms task, not code): email the whole user list a short notice —
+*"we moved Curio to a new platform; your password was not carried over; set a new
+one here"* — and put the same sentence on the sign-in screen. No bulk job is
+needed: the reset endpoint is self-serve and rate-limited to 20/min per IP, which is
+what protects it.
+
+Check the shape of the population before the campaign:
+
+```sql
+select count(*) filter (where a.id is null)               as no_password,
+       count(*) filter (where a.id is null and u.email like '%@import.invalid') as unreachable
+from users u
+left join accounts a on a.user_id = u.user_uuid and a.provider_id = 'credential';
+```
 
 ## 2e. Storage objects (S3 → `.local/files`)
 
@@ -244,8 +276,9 @@ run for them as optional: skipping them is a decision to lose history.
 
 ## 5. Production, when the decisions are made
 
-Blocked on: `DocumentVisionOutput` include/exclude, password strategy, staging database,
-and a write freeze. The mechanical parts are the same as above, with two additions that
+Blocked on: `DocumentVisionOutput` include/exclude, a staging database, and a write
+freeze. Passwords are no longer a blocker — forced reset is decided and implemented
+(§2e). The mechanical parts are the same as above, with two additions that
 dev does not exercise:
 
 1. **Delta sync** — after the freeze, re-export only rows changed since the first pass

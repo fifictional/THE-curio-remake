@@ -31,6 +31,11 @@ export function ForgotPassword() {
         <p className="mt-1 text-sm text-headers">
           We will send a link to that address if an account exists.
         </p>
+        <p className="mt-2 rounded-xl border border-black/10 bg-white p-3 text-xs text-headers">
+          <strong>Why this exists:</strong> passwords from the old Curio were stored by a
+          different identity provider and cannot be verified here. Setting a new one takes a
+          minute and keeps everything you had — documents, chats, flashcards, quizzes.
+        </p>
 
         {sent ? (
           <div className="mt-4 space-y-2 text-sm text-headers">

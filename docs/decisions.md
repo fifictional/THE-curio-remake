@@ -12,6 +12,7 @@
 | v0 scope | **Chat + documents/library** | Upload, local pipeline, summaries. No Datalab layout AI. |
 | AI keys | **User-provided, local** | `OPENAI_API_KEY` required (chat + embeddings); Anthropic/Gemini optional. |
 | Roles | **owner / service / app** | `db:rls` creates `curio_app` (NOBYPASSRLS, requests) and `curio_service` (BYPASSRLS, worker + indexer). The owner runs migrations only and is never mounted into the runtime. |
+| Imported users' passwords | **Forced reset** (2026-11-18) | Cognito hashes cannot be verified by Better Auth, so they are not carried over. Users set a new password from the sign-in screen; everything else (documents, chats, cards, quizzes) is already migrated. No password is ever known to us, so this is also the honest option. 4 users have a placeholder `@import.invalid` email and cannot self-serve — they need support. |
 | Hosting | **Not decided** | Local first. |
 | Desktop | **Later** | Design for it by keeping SQL portable. |
 
