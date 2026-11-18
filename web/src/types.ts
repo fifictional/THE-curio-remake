@@ -43,6 +43,8 @@ export interface SpaceRow {
 export interface ProfileRow {
   id: string;
   name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   email?: string | null;
   country?: string | null;
   userDescription?: string | null;
@@ -75,4 +77,14 @@ export interface CitationRow {
   title: string;
   url: string;
   createdAt?: string | null;
+}
+
+export interface SubscriptionRow {
+  subscriptionId: string;
+  provider?: string | null;
+  status?: string | null;
+  tier?: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelledAt?: string | null;
 }

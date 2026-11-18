@@ -13,11 +13,13 @@ import {
   loadChatPageData,
   loadDocumentData,
   loadLibraryData,
+  loadProfileData,
   loadSettingsData,
   loadSpaceData,
   type ChatPageData,
   type DocumentPageData,
   type LibraryData,
+  type ProfilePageData,
   type SettingsData,
   type SpacePageData,
 } from './loaders';
@@ -26,6 +28,7 @@ export type {
   ChatPageData,
   DocumentPageData,
   LibraryData,
+  ProfilePageData,
   SettingsData,
   SpacePageData,
 };
@@ -48,4 +51,8 @@ export const loadSpace = createServerFn({ method: 'GET' })
 
 export const loadSettings = createServerFn({ method: 'GET' }).handler(
   (): Promise<SettingsData> => loadSettingsData(),
+);
+
+export const loadProfile = createServerFn({ method: 'GET' }).handler(
+  (): Promise<ProfilePageData> => loadProfileData(),
 );

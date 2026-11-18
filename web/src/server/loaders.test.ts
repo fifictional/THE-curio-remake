@@ -15,6 +15,7 @@ const {
   loadChatPageData: loadChatPage,
   loadDocumentData: loadDocument,
   loadLibraryData: loadLibrary,
+  loadProfileData: loadProfile,
   loadSettingsData: loadSettings,
   loadSpaceData: loadSpace,
 } = await import('./loaders');
@@ -182,5 +183,33 @@ describe('loadLibrary and loadSettings', () => {
 
     const settings = await loadSettings();
     expect(settings.profile?.name).toBe('Test');
+  });
+});
+
+describe('loadProfile', () => {
+  it('returns nulls when signed out', async () => {
+    apiFetch.mockResolvedValue(null);
+    expect(await loadProfile()).toEqual({ user: null, profile: null, subscription: null });
+  });
+
+  it('loads the profile and the newest subscription', async () => {
+    mockBridge({
+      UserProfile: { data: { id: USER.sub, firstName: 'Ada', lastName: 'Lovelace' } },
+      CurioSubscription: { data: [{ subscriptionId: 's1', tier: 'ultra', status: 'active' }] },
+    });
+
+    const data = await loadProfile();
+
+    expect(data.profile?.firstName).toBe('Ada');
+    expect(data.subscription?.tier).toBe('ultra');
+  });
+
+  it('handles an account with no subscription', async () => {
+    mockBridge({
+      UserProfile: { data: { id: USER.sub } },
+      CurioSubscription: { data: [] },
+    });
+
+    expect((await loadProfile()).subscription).toBeNull();
   });
 });

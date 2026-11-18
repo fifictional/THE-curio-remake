@@ -43,6 +43,13 @@ export function Shell({
               Library
             </Link>
             <Link
+              to="/profile"
+              activeProps={{ className: 'text-foreground font-medium' }}
+              className="hover:text-foreground"
+            >
+              Profile
+            </Link>
+            <Link
               to="/settings"
               activeProps={{ className: 'text-foreground font-medium' }}
               className="hover:text-foreground"

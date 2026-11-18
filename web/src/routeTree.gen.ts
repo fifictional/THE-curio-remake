@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
@@ -30,6 +31,11 @@ const ForgotRoute = ForgotRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetRoute = ResetRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/forgot': typeof ForgotRoute
   '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot'
     | '/library'
+    | '/profile'
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot'
     | '/library'
+    | '/profile'
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot'
     | '/library'
+    | '/profile'
     | '/reset'
     | '/settings'
     | '/documents/$documentUuid'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ForgotRoute: typeof ForgotRoute
   LibraryRoute: typeof LibraryRoute
+  ProfileRoute: typeof ProfileRoute
   ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ForgotRoute: ForgotRoute,
   LibraryRoute: LibraryRoute,
+  ProfileRoute: ProfileRoute,
   ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
