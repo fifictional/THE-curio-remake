@@ -84,6 +84,14 @@ export function Markdown({ content }: { content?: string }) {
               {children}
             </a>
           ),
+          img: ({ src, alt }) => (
+            // Attachments are stored as `/files?key=…` links in the message text.
+            <img
+              src={typeof src === 'string' ? src : undefined}
+              alt={alt ?? ''}
+              className="my-2 max-h-72 rounded-xl border border-black/10 object-contain"
+            />
+          ),
           code: ({ children, className }) => {
             const fenced = typeof className === 'string' && className.includes('language-');
             return fenced ? (

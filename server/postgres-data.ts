@@ -115,6 +115,9 @@ export function createPostgresDataClient(userId: string | null): HonoDataClient 
                 content: r.content,
                 isCompleted: r.isCompleted,
                 agentStatus: r.agentStatus,
+                // Tool results are rendered as cards, so the read path must keep them.
+                toolName: r.toolName,
+                toolArguments: r.toolArguments,
                 createdAt: iso(r.createdAt),
               }),
             ),

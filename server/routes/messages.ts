@@ -24,6 +24,13 @@ export const CreateMessageArgs = z.object({
   chatUuid: z.string().min(1),
   role: z.enum(['user', 'assistant']),
   content: z.string().min(1),
+  /**
+   * Tool results are messages too (the old app rendered them as cards). The
+   * generator posts one after it has persisted the flashcards/quiz.
+   */
+  type: z.enum(['text', 'tool']).optional(),
+  toolName: z.string().max(80).optional(),
+  toolArguments: z.record(z.string(), z.unknown()).optional(),
 });
 
 export interface MessagesRoute {

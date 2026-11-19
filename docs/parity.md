@@ -39,7 +39,7 @@ Last updated: 2026-11-19.
 
 | Capability | Legacy | Replacement |
 |---|---|---|
-| Chat tools (create flashcards / quiz from a message) | yes | **missing as chat tools** — generation exists as an endpoint (below), not as a tool card inside a conversation |
+| Chat tools (create flashcards / quiz from a message) | yes | **done** — composer shortcuts call generation and post a tool message, which renders as a card (the 35 migrated tool messages render too); `create_mock_exam` cards are skipped with the dropped feature |
 | Flashcard & quiz **generation** | yes | **done, needs a key** — `POST /api/ai/generate` on a document or chat, buttons in the document tabs; without `OPENAI_API_KEY` it answers 503 honestly. `quiz_questions` gained the `answer` column the old model never stored, so a quiz can be graded |
 | Flashcards/quiz **review** per document/space | yes | **done** (read-only list on the document page) |
 | Document chat (one chat per document) | yes | **done** — the Chat tab creates the document's chat on first message and reuses it |
@@ -51,9 +51,9 @@ Last updated: 2026-11-19.
 | Memory (persistent learner memory): toggle, blocks, export, backfill | yes | **partial** — read-only: blocks (gaps / mastered), on-off switch, JSON export, clear. Writing new blocks needs the reflection agent (a model), so backfill is not there |
 | Global search (documents, chats) | via library search | **partial** — library search only |
 | In-app PDF viewer | yes | **done** (browser engine via `/files`; other types fall back to a download link) |
-| Attachments / image messages | yes | **missing** |
-| Web search with URL citations | yes | **missing** (citations are document-based now) |
-| Message actions (copy, vote up/down) | yes | **missing** |
+| Attachments / image messages | yes | **done** — the composer uploads to `/files` under the chat and posts a markdown image/link; images render inline |
+| Web search with URL citations | yes | **partial** — the Sources panel renders `url_citation` rows (labelled "Web source"), but producing them needs a web-search-capable model call, i.e. a key **and** a provider decision |
+| Message actions (copy, vote up/down) | **partial** — copy done; votes not ported |
 | Analytics events (Mixpanel) | yes | **missing** (no provider configured) |
 | Billing, tiers, entitlements | yes | **blocked** (payments decision) |
 | OCR for scanned PDFs | via Datalab | **blocked** (provider decision) |

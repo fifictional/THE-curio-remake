@@ -47,6 +47,9 @@ export interface MessageRecord {
   content: string;
   isCompleted?: boolean | null;
   agentStatus?: string | null;
+  /** Tool results are rendered as cards; the read path must keep them. */
+  toolName?: string | null;
+  toolArguments?: unknown;
   createdAt?: Date | string | null;
 }
 

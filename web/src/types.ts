@@ -2,8 +2,24 @@ export interface Message {
   messageUuid: string;
   chatUuid: string;
   role: 'user' | 'assistant';
+  type?: 'text' | 'tool' | null;
+  toolName?: string | null;
+  /** Parsed on the client; the server function ships it as JSON text. */
+  toolArguments?: unknown;
   content: string;
   createdAt: string;
+}
+
+/** What a loader can serialise: tool arguments travel as a JSON string. */
+export type ServerMessage = Omit<Message, 'toolArguments'> & {
+  toolArgumentsJson: string | null;
+};
+
+export function toolArgs(message: Message): Record<string, unknown> | null {
+  if (message.toolArguments && typeof message.toolArguments === 'object') {
+    return message.toolArguments as Record<string, unknown>;
+  }
+  return null;
 }
 
 export interface SessionUser {

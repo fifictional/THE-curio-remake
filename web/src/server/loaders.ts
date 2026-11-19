@@ -10,16 +10,17 @@
 import type {
   Chat,
   MemoryState,
+  Message,
   MetadataRow,
   SubscriptionRow,
   CitationRow,
   DocumentRow,
   DocumentSummaryRow,
   FlashcardRow,
-  Message,
   MemoryBlockView,
   ProfileRow,
   QuizRow,
+  ServerMessage,
   SpaceMember,
   SessionUser,
   SpaceRow,
@@ -35,7 +36,7 @@ export interface ChatPageData {
   chatName: string | null;
   chatSpaceUuid: string | null;
   spaces: SpaceRow[];
-  messages: Message[];
+  messages: ServerMessage[];
   citations: CitationRow[];
 }
 
@@ -83,7 +84,15 @@ export async function loadChatPageData(
   const messages = chatUuid
     ? ((await apiFetch<{ messages: Message[] }>(
         `/messages?chat=${encodeURIComponent(chatUuid)}`,
-      ))?.messages ?? [])
+      ))?.messages ?? []).map(
+        (message): ServerMessage => {
+          const { toolArguments, ...rest } = message;
+          return {
+            ...rest,
+            toolArgumentsJson: toolArguments ? JSON.stringify(toolArguments) : null,
+          };
+        },
+      )
     : [];
 
   // Sources written by /aiChat, scoped to the chat by RLS.

@@ -40,7 +40,11 @@ function Sources({ chatUuid, initial }: { chatUuid: string; initial: CitationRow
           >
             <span className="block truncate text-sm text-foreground">{citation.title}</span>
             <span className="text-[11px] text-headers">
-              {citation.type === 'document' ? 'Your document' : citation.type}
+              {citation.type === 'document'
+                ? 'Your document'
+                : citation.type === 'url_citation' || citation.type === 'web'
+                  ? 'Web source'
+                  : citation.type}
             </span>
           </a>
         ))}
@@ -185,6 +189,7 @@ function ChatHeader({
 
 function ChatView({
   chatUuid,
+  userSub,
   initialMessages,
   initialCitations,
   chatName,
@@ -192,6 +197,7 @@ function ChatView({
   spaces,
 }: {
   chatUuid: string;
+  userSub: string;
   initialMessages: Message[];
   initialCitations: CitationRow[];
   chatName: string | null;
@@ -201,7 +207,77 @@ function ChatView({
   const messages = useMessages(chatUuid, initialMessages);
   const aiChat = useAiChat(chatUuid);
   const [question, setQuestion] = useState('');
+  const [toolError, setToolError] = useState<string | null>(null);
   const rag = useRagSearch(chatUuid);
+
+  /** Persist a tool result as a message, so the card survives a reload. */
+  const postToolMessage = async (
+    toolName: 'create_flashcard' | 'create_quiz',
+    toolArguments: Record<string, unknown>,
+  ) => {
+    await fetch('/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatUuid,
+        role: 'assistant',
+        type: 'tool',
+        toolName,
+        toolArguments,
+        content: toolName === 'create_flashcard' ? 'Flashcards created' : 'Quiz created',
+      }),
+    });
+    await messages.refetch();
+  };
+
+  const generate = async (kind: 'flashcards' | 'quiz') => {
+    setToolError(null);
+    const res = await fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind, chatUuid, count: kind === 'flashcards' ? 8 : 5 }),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      flashcards?: Array<{ title: string; content: string }>;
+      quiz?: { title?: string; difficulty?: string; questionCount?: number };
+    };
+
+    if (!res.ok) {
+      setToolError(body.error ?? `HTTP ${res.status}`);
+      return;
+    }
+
+    if (kind === 'flashcards') {
+      await postToolMessage('create_flashcard', { flashcards: body.flashcards ?? [] });
+    } else {
+      await postToolMessage('create_quiz', { quiz: body.quiz ?? {} });
+    }
+  };
+
+  const attach = async (file: File) => {
+    const extension = file.name.includes('.') ? `.${file.name.split('.').pop()}` : '';
+    const key = `student-documents/${userSub}/chat/${chatUuid}/${crypto.randomUUID()}${extension}`;
+    const upload = await fetch(`/files?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      body: file,
+    });
+    if (!upload.ok) {
+      setToolError(`Upload failed (${upload.status})`);
+      return;
+    }
+
+    const url = `/files?key=${encodeURIComponent(key)}`;
+    const isImage = (file.type || '').startsWith('image/');
+    const markdown = isImage ? `![${file.name}](${url})` : `[${file.name}](${url})`;
+
+    await fetch('/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chatUuid, role: 'user', content: markdown }),
+    });
+    await messages.refetch();
+  };
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -259,9 +335,14 @@ function ChatView({
         </div>
 
         <div className="px-6 pb-5">
+          {toolError && (
+            <p className="mx-auto mb-2 w-full max-w-3xl text-xs text-red-600">{toolError}</p>
+          )}
           <Composer
             onSend={(text) => aiChat.mutate({ message: text })}
             pending={aiChat.isPending}
+            onTool={(kind) => void generate(kind)}
+            onAttach={(file) => void attach(file)}
           />
         </div>
       </div>
@@ -295,6 +376,7 @@ export default function App({
   return initial.chatUuid ? (
     <ChatView
       chatUuid={initial.chatUuid}
+      userSub={initial.user?.sub ?? ''}
       initialMessages={initial.messages}
       initialCitations={initial.citations}
       chatName={initial.chatName}
