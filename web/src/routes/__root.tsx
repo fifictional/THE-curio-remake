@@ -7,9 +7,14 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import appCss from '../index.css?url';
+import { AppShell } from '../components/app-shell';
 import { NotFound, RouteError } from '../components/states';
+import { loadShell } from '../server/api';
 
 export const Route = createRootRoute({
+  // One load for the sidebar; pages keep their own data loaders.
+  loader: () => loadShell(),
+  staleTime: 30_000,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -36,9 +41,18 @@ function RootComponent() {
       }),
   );
 
+  const shell = Route.useLoaderData();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <AppShell
+        user={shell?.user ?? null}
+        chats={shell?.chats ?? []}
+        documents={shell?.documents ?? []}
+        spaces={shell?.spaces ?? []}
+      >
+        <Outlet />
+      </AppShell>
     </QueryClientProvider>
   );
 }

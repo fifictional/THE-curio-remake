@@ -9,7 +9,6 @@ import type {
   QuizRow,
   SessionUser,
 } from '../types';
-import { Shell } from './shell';
 
 function fileUrl(key: string) {
   return `/files?key=${encodeURIComponent(key)}`;
@@ -101,15 +100,15 @@ export function DocumentView({
 }) {
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
   if (!document) {
     return (
-      <Shell user={user}>
+      <div className="mx-auto w-full max-w-3xl px-6 py-6">
         <div className="rounded-2xl border border-chat-panel-border bg-chat-panel p-6">
           <h1 className="text-lg font-semibold text-foreground">Document not found</h1>
           <p className="mt-1 text-sm text-headers">
@@ -119,12 +118,12 @@ export function DocumentView({
             Back to the library
           </Link>
         </div>
-      </Shell>
+      </div>
     );
   }
 
   return (
-    <Shell user={user} wide>
+    <div className="mx-auto w-full max-w-5xl px-6 py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link to="/library" className="text-xs text-headers underline">
@@ -174,6 +173,6 @@ export function DocumentView({
       </section>
 
       <StudyMaterial flashcards={flashcards} quizzes={quizzes} />
-    </Shell>
+    </div>
   );
 }

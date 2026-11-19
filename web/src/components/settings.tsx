@@ -2,7 +2,6 @@ import { useSignOut } from '../api';
 import { AccountDangerZone } from './account-danger';
 import type { ProfileRow, SessionUser } from '../types';
 import { AuthCard } from './auth-card';
-import { Shell } from './shell';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -24,16 +23,16 @@ export function Settings({
 
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
   const createdAt = profile?.createdAt ?? null;
 
   return (
-    <Shell user={user}>
+    <div className="mx-auto w-full max-w-3xl px-6 py-6">
       <h1 className="font-roca text-2xl text-foreground">Settings</h1>
       <p className="mt-1 text-sm text-headers">Your account and how Curio knows you.</p>
 
@@ -73,6 +72,6 @@ export function Settings({
       </section>
 
       <AccountDangerZone email={user.email} />
-    </Shell>
+    </div>
   );
 }

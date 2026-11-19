@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router';
 
 import type { Chat, DocumentRow, SessionUser, SpaceRow } from '../types';
 import { AuthCard } from './auth-card';
-import { Shell } from './shell';
 
 export function Space({
   user,
@@ -17,15 +16,15 @@ export function Space({
 }) {
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
   if (!space) {
     return (
-      <Shell user={user} wide>
+      <div className="mx-auto w-full max-w-5xl px-6 py-6">
         <div className="rounded-2xl border border-chat-panel-border bg-chat-panel p-6">
           <h1 className="text-lg font-semibold text-foreground">Folder not found</h1>
           <p className="mt-1 text-sm text-headers">
@@ -35,12 +34,12 @@ export function Space({
             Back to the library
           </Link>
         </div>
-      </Shell>
+      </div>
     );
   }
 
   return (
-    <Shell user={user} wide>
+    <div className="mx-auto w-full max-w-5xl px-6 py-6">
       <Link to="/library" className="text-xs text-headers underline">
         ← Library
       </Link>
@@ -101,6 +100,6 @@ export function Space({
           )}
         </div>
       </section>
-    </Shell>
+    </div>
   );
 }

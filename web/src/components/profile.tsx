@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { ProfileRow, SessionUser, SubscriptionRow } from '../types';
 import { AccountDangerZone } from './account-danger';
 import { AuthCard } from './auth-card';
-import { Shell } from './shell';
 
 function Row({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
   return (
@@ -49,9 +48,9 @@ export function Profile({
 }) {
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
@@ -60,7 +59,7 @@ export function Profile({
     : null;
 
   return (
-    <Shell user={user}>
+    <div className="mx-auto w-full max-w-3xl px-6 py-6">
       <h1 className="font-roca text-2xl text-foreground">Profile</h1>
 
       <section className="mt-6 rounded-2xl border border-chat-panel-border bg-chat-panel p-5">
@@ -106,6 +105,6 @@ export function Profile({
       </section>
 
       <AccountDangerZone email={user.email} />
-    </Shell>
+    </div>
   );
 }

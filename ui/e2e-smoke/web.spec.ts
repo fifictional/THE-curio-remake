@@ -55,8 +55,9 @@ test('new UI: signed-out gates, a throwaway account, and the empty states', asyn
 
   // Library: empty state, not a crash.
   await page.goto(`${WEB}/library`, { waitUntil: 'networkidle' });
-  await expect(page.getByText('Your library')).toBeVisible();
-  await expect(page.getByText('Nothing here yet')).toBeVisible();
+  // The sidebar also says "Your library", so anchor on the heading and the copy.
+  await expect(page.getByRole('heading', { name: 'Your library' })).toBeVisible();
+  await expect(page.getByText(/upload a PDF to start/i)).toBeVisible();
 
   // Bad ids are "not found", never a 500.
   for (const [path, text] of [
@@ -70,7 +71,7 @@ test('new UI: signed-out gates, a throwaway account, and the empty states', asyn
 
   // Chat: a message round-trips (mock reply without a key) and the page updates.
   await page.goto(`${WEB}/`, { waitUntil: 'networkidle' });
-  await page.locator('input[placeholder="Ask Curio anything…"]').fill('hello from the verify spec');
+  await page.getByPlaceholder(/ask anything/i).fill('hello from the verify spec');
   await page.getByRole('button', { name: 'Send' }).click();
   // Twice, legitimately: the user's message and the mock reply quoting it.
   await expect(page.getByText('hello from the verify spec').first()).toBeVisible({

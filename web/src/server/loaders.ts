@@ -26,6 +26,7 @@ import { apiFetch } from './fetch.server';
 
 export interface ChatPageData {
   user: SessionUser | null;
+  firstName: string | null;
   chatUuid: string | null;
   messages: Message[];
   citations: CitationRow[];
@@ -35,30 +36,19 @@ export async function loadChatPageData(
   data: { chatUuid?: string },
 ): Promise<ChatPageData> {
   const session = await apiFetch<{ user: SessionUser }>('/me');
-  if (!session?.user) return { user: null, chatUuid: null, messages: [], citations: [] };
+  if (!session?.user) {
+    return { user: null, firstName: null, chatUuid: null, messages: [], citations: [] };
+  }
 
-  const chats = await apiFetch<{ data: Chat[] }>('/db', {
-    method: 'POST',
-    body: JSON.stringify({ model: 'Chat', method: 'list', options: { limit: 20 } }),
-  });
-
-  // A deep link wins; otherwise the most recent conversation.
-  let chatUuid: string | null = isUuid(data.chatUuid)
-    ? data.chatUuid
-    : (chats?.data?.[0]?.chatUuid ?? null);
+  const name = session.user.name ?? '';
+  const firstName = name.trim().split(' ')[0] || session.user.email?.split('@')[0] || null;
 
   /*
-   * A brand-new account has no conversation, and the chat screen is where they
-   * land. Create the first one here rather than bouncing them to an empty
-   * screen: the bridge defaults ownership to the caller, so this is one call.
+   * A deep link opens that conversation; otherwise the home screen is the
+   * greeting, exactly like the product. No chat is created until the first
+   * message — see `useStartChat` in the client.
    */
-  if (!chatUuid) {
-    const created = await apiFetch<{ data: { chatUuid?: string } | null }>('/db', {
-      method: 'POST',
-      body: JSON.stringify({ model: 'Chat', method: 'create', args: { name: 'New chat' } }),
-    });
-    chatUuid = created?.data?.chatUuid ?? null;
-  }
+  const chatUuid: string | null = isUuid(data.chatUuid) ? data.chatUuid : null;
 
   const messages = chatUuid
     ? ((await apiFetch<{ messages: Message[] }>(
@@ -81,7 +71,7 @@ export async function loadChatPageData(
       )?.data ?? [])
     : [];
 
-  return { user: session.user, chatUuid, messages, citations };
+  return { user: session.user, firstName, chatUuid, messages, citations };
 }
 
 export interface SpacePageData {
@@ -323,4 +313,44 @@ export async function loadMetadataData(data: {
   });
 
   return { user: session.user, targetUuid: data.targetUuid, metadata: rows?.data ?? [] };
+}
+
+export interface ShellData {
+  user: SessionUser | null;
+  firstName: string | null;
+  chats: Chat[];
+  documents: DocumentRow[];
+  spaces: SpaceRow[];
+}
+
+/** Sidebar contents, loaded once by the root route for every screen. */
+export async function loadShellData(): Promise<ShellData> {
+  const session = await apiFetch<{ user: SessionUser }>('/me');
+  if (!session?.user) return { user: null, firstName: null, chats: [], documents: [], spaces: [] };
+
+  const [chats, documents, spaces] = await Promise.all([
+    apiFetch<{ data: Chat[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'Chat', method: 'list', options: { limit: 25 } }),
+    }),
+    apiFetch<{ data: DocumentRow[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'Document', method: 'list', options: { limit: 25 } }),
+    }),
+    apiFetch<{ data: SpaceRow[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'Space', method: 'list', options: { limit: 25 } }),
+    }),
+  ]);
+
+  const name = session.user.name ?? '';
+  const firstName = name.trim().split(' ')[0] || session.user.email?.split('@')[0] || null;
+
+  return {
+    user: session.user,
+    firstName,
+    chats: chats?.data ?? [],
+    documents: documents?.data ?? [],
+    spaces: spaces?.data ?? [],
+  };
 }

@@ -49,12 +49,18 @@ describe('loadChatPage', () => {
 
     const data = await loadChatPage({});
 
-    expect(data).toEqual({ user: null, chatUuid: null, messages: [], citations: [] });
+    expect(data).toEqual({
+      user: null,
+      firstName: null,
+      chatUuid: null,
+      messages: [],
+      citations: [],
+    });
     expect(apiFetch).toHaveBeenCalledTimes(1);
     expect(apiFetch).toHaveBeenCalledWith('/me');
   });
 
-  it('uses a valid deep link over the most recent chat', async () => {
+  it('opens the conversation named in a valid deep link', async () => {
     mockBridge({ Chat: { data: [{ chatUuid: CHAT_A }] }, ChatCitation: { data: [] } });
 
     const data = await loadChatPage({ chatUuid: CHAT_B });
@@ -64,37 +70,28 @@ describe('loadChatPage', () => {
     expect(paths.some((p) => p.startsWith(`/messages?chat=${CHAT_B}`))).toBe(true);
   });
 
-  it('ignores a malformed deep link instead of asking the API', async () => {
+  it('shows the greeting for a malformed deep link instead of asking the API', async () => {
     mockBridge({ Chat: { data: [{ chatUuid: CHAT_A }] }, ChatCitation: { data: [] } });
 
     const data = await loadChatPage({ chatUuid: 'not-a-uuid' });
 
-    expect(data.chatUuid).toBe(CHAT_A);
+    expect(data.chatUuid).toBeNull();
     const paths = apiFetch.mock.calls.map((c) => String(c[0]));
     expect(paths.some((p) => p.includes('not-a-uuid'))).toBe(false);
   });
 
-  it('creates the first conversation for a brand-new account', async () => {
-    mockBridge({
-      Chat: { data: [] },
-      ChatCitation: { data: [] },
-    });
-    apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
-      if (path === '/me') return { user: USER };
-      if (path === '/db') {
-        const body = JSON.parse(String(init?.body)) as { method: string };
-        if (body.method === 'create') return { data: { chatUuid: CHAT_B } };
-        return { data: [] };
-      }
-      if (path.startsWith('/messages')) return { messages: [] };
-      throw new Error(`unexpected ${path}`);
-    });
+  it('never creates a conversation as a side effect of loading', async () => {
+    // Creation belongs to the first message (`useCreateChat`), so the home screen
+    // is the greeting rather than an empty chat that already exists.
+    mockBridge({ Chat: { data: [] }, ChatCitation: { data: [] } });
 
     const data = await loadChatPage({});
 
-    expect(data.chatUuid).toBe(CHAT_B);
-    const createCall = apiFetch.mock.calls.find((c) => String(c[0]) === '/db' && String(c[1]?.body).includes('"create"'));
-    expect(createCall, 'a chat must be created').toBeTruthy();
+    expect(data.chatUuid).toBeNull();
+    const created = apiFetch.mock.calls.find(
+      (c) => String(c[0]) === '/db' && String(c[1]?.body).includes('"create"'),
+    );
+    expect(created, 'loading a page must not write').toBeUndefined();
   });
 });
 

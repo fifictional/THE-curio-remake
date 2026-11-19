@@ -1,239 +1,258 @@
-import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { ArrowUp, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import { AuthCard } from './auth-card';
+import { FloatingNav } from './app-shell';
 import { Markdown } from '../lib/markdown';
 import type { CitationRow, Message, SessionUser } from '../types';
 import {
-  DEFAULT_CHAT,
   useAiChat,
   useCitations,
+  useCreateChat,
   useMe,
   useMessages,
   useRagSearch,
-  useSignOut,
 } from '../api';
 
 /**
- * Chat surface.
- *
- * Styling uses the original Curio tokens (see src/index.css): chat panel
- * #FCFBFA, border #EAECF0, page background #F4F3ED, accent green #126310.
- * The original component tree lives in the old repo at
- * `src/components/core/chat/*` (chat.tsx 271 lines, message-ui.tsx 296) and is
- * the next thing to port — it needs its providers, markdown renderer and
- * framer-motion installed here.
+ * Chat surface, ported from the original layout: greeting when there is no
+ * conversation, message column + sources panel when there is one, and a
+ * rounded composer with the upload affordance at the bottom.
  */
 
 function Sources({ chatUuid, initial }: { chatUuid: string; initial: CitationRow[] }) {
   const citations = useCitations(chatUuid, initial);
 
   return (
-    <aside className="hidden w-80 shrink-0 lg:block">
-      <div className="sticky top-4 rounded-2xl border border-chat-panel-border bg-chat-panel p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-headers">Sources</h2>
-        <p className="mt-1 text-[11px] text-headers">
-          Documents Curio used to answer in this conversation.
-        </p>
+    <aside className="hidden w-72 shrink-0 flex-col border-l border-black/5 px-4 py-5 xl:flex">
+      <h2 className="text-sm font-semibold text-headers">Sources</h2>
+      <p className="mt-1 text-[11px] text-headers">Documents Curio used in this conversation.</p>
 
-        <div className="mt-3 space-y-2">
-          {(citations.data ?? []).map((citation) => (
-            <a
-              key={citation.chatCitationUuid}
-              href={citation.url}
-              className="block rounded-lg border border-black/5 bg-white px-3 py-2 hover:border-curio-green/40"
-            >
-              <span className="block truncate text-sm text-foreground">{citation.title}</span>
-              <span className="text-[11px] text-headers">
-                {citation.type === 'document' ? 'Your document' : citation.type}
-              </span>
-            </a>
-          ))}
-          {(citations.data ?? []).length === 0 && (
-            <p className="text-sm text-headers">
-              No sources yet. Ask something about your documents and they will show up here.
-            </p>
-          )}
-        </div>
+      <div className="mt-3 space-y-2 overflow-y-auto">
+        {(citations.data ?? []).map((citation) => (
+          <a
+            key={citation.chatCitationUuid}
+            href={citation.url}
+            className="block rounded-xl border border-black/5 bg-chat-panel px-3 py-2 hover:border-curio-green/40"
+          >
+            <span className="block truncate text-sm text-foreground">{citation.title}</span>
+            <span className="text-[11px] text-headers">
+              {citation.type === 'document' ? 'Your document' : citation.type}
+            </span>
+          </a>
+        ))}
+        {(citations.data ?? []).length === 0 && (
+          <p className="text-sm text-headers">
+            No sources yet. Ask something about your documents and they will show up here.
+          </p>
+        )}
       </div>
     </aside>
   );
 }
 
-function Chat({
-  initialChatUuid,
-  initialMessages,
-  initialCitations,
+function Composer({
+  onSend,
+  pending,
+  autoFocus,
 }: {
-  initialChatUuid: string | null;
-  initialMessages: Message[];
-  initialCitations: CitationRow[];
+  onSend: (text: string) => void;
+  pending?: boolean;
+  autoFocus?: boolean;
 }) {
-  const [chatUuid, setChatUuid] = useState(initialChatUuid ?? DEFAULT_CHAT);
   const [draft, setDraft] = useState('');
-  const [question, setQuestion] = useState('');
+  const input = useRef<HTMLInputElement>(null);
 
-  const messages = useMessages(chatUuid, chatUuid === initialChatUuid ? initialMessages : undefined);
-  const aiChat = useAiChat(chatUuid);
-  const rag = useRagSearch(chatUuid);
-  const signOut = useSignOut();
-
-  const send = () => {
+  const submit = () => {
     const text = draft.trim();
-    if (!text || aiChat.isPending) return;
+    if (!text || pending) return;
     setDraft('');
-    aiChat.mutate(text);
+    onSend(text);
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-8">
-      <header className="flex items-center justify-between gap-3 py-5">
-        <div className="flex items-baseline gap-3">
-          <span className="font-roca text-xl text-foreground">Curio</span>
-          <span className="text-xs text-headers">chat</span>
-          <a href="/library" className="ml-2 text-sm text-headers underline hover:text-foreground">
-            Library
-          </a>
-        </div>
-        <div className="flex items-center gap-2">
-          {import.meta.env.DEV && (
-            <input
-              value={chatUuid}
-              onChange={(e) => setChatUuid(e.target.value)}
-              title="chat uuid (dev only)"
-              className="w-56 rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 font-mono text-[11px] text-paragraphs"
-            />
-          )}
-          <button
-            onClick={() => messages.refetch()}
-            className="rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 text-xs text-paragraphs"
-          >
-            Reload
-          </button>
-          <button
-            onClick={() => signOut.mutate()}
-            className="rounded-lg border border-chat-panel-border bg-chat-panel px-2 py-1 text-xs text-paragraphs"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1 gap-4">
-      <main className="flex-1 rounded-2xl border border-chat-panel-border bg-chat-panel p-5">
-        {messages.isLoading && <p className="text-sm text-headers">Loading…</p>}
-        {messages.error && <p className="text-sm text-red-600">{messages.error.message}</p>}
-        {messages.data?.length === 0 && (
-          <p className="text-sm text-headers">No messages in this chat yet.</p>
-        )}
-
-        <div className="space-y-4">
-          {messages.data?.map((m) => {
-            const isUser = m.role === 'user';
-            const time = new Date(m.createdAt).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-
-            // Legacy shape: the student's turn is a bubble on the right, the
-            // tutor's turn is plain full-width text on the left.
-            if (isUser) {
-              return (
-                <div key={m.messageUuid} className="flex flex-col items-end">
-                  <div className="mr-2 mb-2 text-sm font-bold text-headers">You</div>
-                  <div className="max-w-[80%] rounded-3xl rounded-br-none bg-neutral-500 px-4 py-2 text-white">
-                    <Markdown content={m.content} />
-                    <div className="mt-1 text-[10px] text-white/70">{time}</div>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={m.messageUuid} className="flex flex-col items-start">
-                <div className="w-full">
-                  <Markdown content={m.content} />
-                  <div className="mt-1 text-[10px] text-headers">{time}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {aiChat.isPending && (
-          <p className="mt-3 text-sm text-headers">Curio is thinking…</p>
-        )}
-        {aiChat.error && <p className="mt-3 text-sm text-red-600">{aiChat.error.message}</p>}
-        {aiChat.data?.mock && (
-          <p className="mt-3 text-[11px] text-focus-text">
-            Mock reply — set OPENAI_API_KEY in .env for a real model.
-          </p>
-        )}
-      </main>
-
-      <Sources chatUuid={chatUuid} initial={chatUuid === initialChatUuid ? initialCitations : []} />
-      </div>
-
-      <div className="mt-4 flex items-center gap-2">
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-curio-green/15">
+        <button
+          type="button"
+          aria-label="Upload a document"
+          title="Upload a document"
+          onClick={() => {
+            window.location.assign('/library');
+          }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-black/5 hover:text-gray-800"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
         <input
+          ref={input}
           value={draft}
+          autoFocus={autoFocus}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') send();
+            if (e.key === 'Enter') submit();
           }}
-          placeholder="Ask Curio anything…"
-          className="flex-1 rounded-xl border border-chat-panel-border bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-curio-green/20"
+          placeholder="Ask anything…"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-headers"
         />
         <button
-          onClick={send}
-          disabled={aiChat.isPending || !draft.trim()}
-          className="rounded-xl bg-curio-green px-5 py-3 text-sm font-medium text-white disabled:opacity-40"
+          type="button"
+          aria-label="Send"
+          onClick={submit}
+          disabled={!draft.trim() || pending}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-curio-green text-white disabled:opacity-30"
         >
-          Send
+          <ArrowUp className="h-4 w-4" />
         </button>
       </div>
-
-      <details className="mt-4 rounded-xl border border-chat-panel-border bg-chat-panel px-4 py-3">
-        <summary className="cursor-pointer text-xs uppercase tracking-wide text-headers">
-          Search sources (documents + chat)
-        </summary>
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Search your documents…"
-            className="flex-1 rounded-lg border border-chat-panel-border bg-white px-3 py-2 text-sm"
-          />
-          <button
-            onClick={() => rag.mutate(question)}
-            disabled={rag.isPending || !question.trim()}
-            className="rounded-lg border border-chat-panel-border px-3 py-2 text-sm disabled:opacity-40"
-          >
-            Search
-          </button>
-        </div>
-        {rag.error && <p className="mt-2 text-xs text-red-600">{rag.error.message}</p>}
-        <div className="mt-3 space-y-2">
-          {rag.data?.hits.map((h) => (
-            <div key={h.messageUuid} className="rounded-lg bg-white px-3 py-2 text-xs">
-              <span className="text-headers">score {h.score.toFixed(3)}</span>
-              <p className="mt-1 text-paragraphs">{h.text}</p>
-            </div>
-          ))}
-        </div>
-      </details>
     </div>
   );
 }
 
-/**
- * `initial` is the SSR loader's data: session, first chat and its messages. The
- * page is correct before any client JavaScript runs.
- */
+/** The home screen before a conversation exists — the product's greeting. */
+function Greeting({ firstName }: { firstName: string | null }) {
+  const createChat = useCreateChat();
+  const aiChat = useAiChat('');
+  const navigate = useNavigate();
+
+  const start = async (text: string) => {
+    const created = await createChat.mutateAsync();
+    if (!created) return;
+    // Send after the chat exists, then land on it (same order as the user expects).
+    await aiChat.mutateAsync({ chatUuid: created, message: text }).catch(() => {});
+    await navigate({ to: '/', search: { chat: created } });
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-28">
+      <h1 className="text-center font-sans text-3xl font-semibold text-foreground">
+        Hi {firstName ?? 'there'} 👋
+      </h1>
+      <h2 className="mt-6 max-w-xl text-center text-4xl font-bold leading-tight text-headers">
+        What <span className="text-foreground">curio</span>sity do you want to explore today?
+      </h2>
+
+      <div className="mt-10 w-full max-w-2xl">
+        <Composer onSend={start} pending={createChat.isPending || aiChat.isPending} autoFocus />
+      </div>
+
+      <div className="fixed inset-x-0 bottom-6 flex justify-center">
+        <FloatingNav />
+      </div>
+    </div>
+  );
+}
+
+function ChatView({
+  chatUuid,
+  initialMessages,
+  initialCitations,
+}: {
+  chatUuid: string;
+  initialMessages: Message[];
+  initialCitations: CitationRow[];
+}) {
+  const messages = useMessages(chatUuid, initialMessages);
+  const aiChat = useAiChat(chatUuid);
+  const [question, setQuestion] = useState('');
+  const rag = useRagSearch(chatUuid);
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="mx-auto w-full max-w-3xl space-y-6">
+            {messages.isLoading && <p className="text-sm text-headers">Loading…</p>}
+            {messages.data?.length === 0 && (
+              <p className="text-sm text-headers">No messages in this chat yet.</p>
+            )}
+
+            {messages.data?.map((m) => {
+              const isUser = m.role === 'user';
+              const time = new Date(m.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              if (isUser) {
+                return (
+                  <div key={m.messageUuid} className="flex flex-col items-end">
+                    <div className="mr-2 mb-2 text-sm font-bold text-headers">You</div>
+                    <div className="max-w-[80%] rounded-3xl rounded-br-none bg-neutral-500 px-4 py-2 text-white">
+                      <Markdown content={m.content} />
+                      <div className="mt-1 text-[10px] text-white/70">{time}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={m.messageUuid} className="flex flex-col items-start">
+                  <div className="w-full">
+                    <Markdown content={m.content} />
+                    <div className="mt-1 text-[10px] text-headers">{time}</div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {aiChat.isPending && <p className="text-sm text-headers">Curio is thinking…</p>}
+            {aiChat.error && <p className="text-sm text-red-600">{(aiChat.error as Error).message}</p>}
+            {aiChat.data?.mock && (
+              <p className="text-[11px] text-focus-text">
+                Mock reply — set OPENAI_API_KEY in .env for a real model.
+              </p>
+            )}
+
+            <details className="rounded-xl border border-black/5 px-3 py-2 text-xs text-headers">
+              <summary className="cursor-pointer">Search sources</summary>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Search your documents…"
+                  className="flex-1 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm"
+                />
+                <button
+                  onClick={() => rag.mutate(question)}
+                  disabled={rag.isPending || !question.trim()}
+                  className="rounded-lg border border-black/10 px-3 py-1.5 text-sm disabled:opacity-40"
+                >
+                  Search
+                </button>
+              </div>
+              <div className="mt-2 space-y-1">
+                {rag.data?.hits.map((hit) => (
+                  <div key={hit.messageUuid} className="rounded-lg bg-white px-2 py-1.5">
+                    <span className="text-[10px] text-headers">score {hit.score.toFixed(3)}</span>
+                    <p className="text-paragraphs">{hit.text}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div className="px-6 pb-5">
+          <Composer
+            onSend={(text) => aiChat.mutate({ message: text })}
+            pending={aiChat.isPending}
+          />
+        </div>
+      </div>
+
+      <Sources chatUuid={chatUuid} initial={initialCitations} />
+    </div>
+  );
+}
+
 export default function App({
   initial,
 }: {
   initial: {
     user: SessionUser | null;
+    firstName: string | null;
     chatUuid: string | null;
     messages: Message[];
     citations: CitationRow[];
@@ -246,11 +265,13 @@ export default function App({
   }
   if (!me.data?.authenticated) return <AuthCard />;
 
-  return (
-    <Chat
-      initialChatUuid={initial.chatUuid}
+  return initial.chatUuid ? (
+    <ChatView
+      chatUuid={initial.chatUuid}
       initialMessages={initial.messages}
       initialCitations={initial.citations}
     />
+  ) : (
+    <Greeting firstName={initial.firstName} />
   );
 }

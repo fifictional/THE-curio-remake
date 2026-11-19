@@ -140,6 +140,13 @@ Screens: **chat**, **library** (`/library` — search, real documents, upload) a
 **document** (`/documents/<uuid>` — metadata, "open file", rendered summary). All
 three are server-rendered and gated by the session card.
 
+The **shell is the product's shell**: wordmark, New Chat / Library / Feedback /
+Settings, Your Library folders, Recents (chats + documents), account footer, and the
+greeting home ("Hi {name} 👋 / What curiosity do you want to explore today?") with the
+floating Home/Upload/Library nav. It loads once at the root route, so every screen
+sits inside it. A brand-new account gets the greeting, and the first message creates
+the conversation — the page load itself writes nothing.
+
 Screens so far: **chat** (`/?chat=<uuid>` deep-links a conversation, with a Sources
 panel and 4s polling), **library**, **document** (summary + read-only study
 material), **spaces** (`/spaces/<id>`), **settings** (export + delete account) and

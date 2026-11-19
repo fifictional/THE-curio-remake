@@ -119,17 +119,34 @@ export function useCitations(chatUuid: string | null, initial?: CitationRow[]) {
   });
 }
 
+/** Creates the first conversation; the greeting sends through it. */
+export function useCreateChat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<string | null> => {
+      const res = await json<{ data: { chatUuid?: string } | null }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Chat', method: 'create', args: { name: 'New chat' } }),
+      });
+      const chatUuid = res.data?.chatUuid ?? null;
+      if (chatUuid) qc.invalidateQueries({ queryKey: ['me'] });
+      return chatUuid;
+    },
+  });
+}
+
 export function useAiChat(chatUuid: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (message: string) =>
+    mutationFn: ({ message, chatUuid: explicit }: { message: string; chatUuid?: string }) =>
       json<{ messages: Message[]; mock: boolean }>('/aiChat', {
         method: 'POST',
-        body: JSON.stringify({ chatUuid, message }),
+        body: JSON.stringify({ chatUuid: explicit ?? chatUuid, message }),
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['messages', chatUuid] });
-      qc.invalidateQueries({ queryKey: ['citations', chatUuid] });
+    onSuccess: (_data, variables) => {
+      const target = variables.chatUuid ?? chatUuid;
+      qc.invalidateQueries({ queryKey: ['messages', target] });
+      qc.invalidateQueries({ queryKey: ['citations', target] });
     },
   });
 }

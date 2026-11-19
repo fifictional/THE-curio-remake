@@ -48,7 +48,8 @@ The TanStack replacement's noted blocker is gone: `web/` is server-rendered and 
 loader forwards the session cookie to the API (`web/src/server/`), so the first
 paint is the real conversation rather than an empty shell. It also renders markdown
 + KaTeX, matches the original message layout (student bubble right, tutor text
-left), and now covers the **library** and **document** screens — list, search,
+left), reproduces the **app shell** (sidebar with folders and recents, greeting home,
+floating nav) and covers the **library** and **document** screens — list, search,
 upload, summary. Parity now covers chat, library, document (summary + read-only study material),
 spaces and settings. Remaining: generating flashcards/quizzes (the chat tool
 pipeline is not ported), YouTube/transcription flows, and the admin screens (which

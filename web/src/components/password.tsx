@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { Shell } from './shell';
 
 const card = 'mx-auto mt-16 w-full max-w-md rounded-2xl border border-chat-panel-border bg-chat-panel p-6';
 const input = 'w-full rounded-xl border border-chat-panel-border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-curio-green/20';
@@ -25,7 +24,7 @@ export function ForgotPassword() {
   const [busy, setBusy] = useState(false);
 
   return (
-    <Shell user={null}>
+    <div className="mx-auto w-full max-w-md px-6 pt-16">
       <div className={card}>
         <h1 className="font-roca text-xl text-foreground">Reset your password</h1>
         <p className="mt-1 text-sm text-headers">
@@ -78,7 +77,7 @@ export function ForgotPassword() {
           Back to sign in
         </Link>
       </div>
-    </Shell>
+    </div>
   );
 }
 
@@ -90,7 +89,7 @@ export function ResetPassword({ token }: { token: string | null }) {
   const [busy, setBusy] = useState(false);
 
   return (
-    <Shell user={null}>
+    <div className="mx-auto w-full max-w-md px-6 pt-16">
       <div className={card}>
         <h1 className="font-roca text-xl text-foreground">Choose a new password</h1>
 
@@ -136,6 +135,6 @@ export function ResetPassword({ token }: { token: string | null }) {
           )
         )}
       </div>
-    </Shell>
+    </div>
   );
 }

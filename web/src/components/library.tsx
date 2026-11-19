@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from 'react';
 
 import type { DocumentRow, SessionUser, SpaceRow } from '../types';
 import { AuthCard } from './auth-card';
-import { Shell } from './shell';
 
 /** `POST /files` then `POST /documents`: the browser uploads, the worker summarises. */
 function useUploadDocument(userSub: string | null) {
@@ -100,14 +99,14 @@ export function Library({
   // Hooks first: an early return above them would break the rules of hooks.
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
   return (
-    <Shell user={user} wide>
+    <div className="mx-auto w-full max-w-5xl px-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-roca text-2xl text-foreground">Your library</h1>
         <div className="flex items-center gap-2">
@@ -180,6 +179,6 @@ export function Library({
           </p>
         )}
       </div>
-    </Shell>
+    </div>
   );
 }

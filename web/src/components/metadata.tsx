@@ -1,6 +1,5 @@
 import type { MetadataRow, SessionUser } from '../types';
 import { AuthCard } from './auth-card';
-import { Shell } from './shell';
 
 /**
  * The metadata rows attached to one entity (document, chat, user…).
@@ -19,14 +18,14 @@ export function Metadata({
 }) {
   if (!user) {
     return (
-      <Shell user={null}>
+      <div className="mx-auto w-full max-w-md px-6 pt-16">
         <AuthCard />
-      </Shell>
+      </div>
     );
   }
 
   return (
-    <Shell user={user} wide>
+    <div className="mx-auto w-full max-w-5xl px-6 py-6">
       <h1 className="font-roca text-2xl text-foreground">Metadata</h1>
       <p className="mt-1 text-xs text-headers">
         Target <code className="font-mono">{targetUuid}</code>
@@ -64,6 +63,6 @@ export function Metadata({
           </table>
         </div>
       )}
-    </Shell>
+    </div>
   );
 }

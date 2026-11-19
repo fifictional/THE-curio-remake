@@ -15,6 +15,7 @@ import {
   loadLibraryData,
   loadMetadataData,
   loadProfileData,
+  loadShellData,
   loadSettingsData,
   loadSpaceData,
   type ChatPageData,
@@ -22,6 +23,7 @@ import {
   type LibraryData,
   type MetadataPageData,
   type ProfilePageData,
+  type ShellData,
   type SettingsData,
   type SpacePageData,
 } from './loaders';
@@ -33,6 +35,7 @@ export type {
   MetadataPageData,
   ProfilePageData,
   SettingsData,
+  ShellData,
   SpacePageData,
 };
 
@@ -63,3 +66,7 @@ export const loadProfile = createServerFn({ method: 'GET' }).handler(
 export const loadMetadata = createServerFn({ method: 'GET' })
   .validator((data: { targetUuid: string }) => data)
   .handler(({ data }): Promise<MetadataPageData> => loadMetadataData(data));
+
+export const loadShell = createServerFn({ method: 'GET' }).handler(
+  (): Promise<ShellData> => loadShellData(),
+);
