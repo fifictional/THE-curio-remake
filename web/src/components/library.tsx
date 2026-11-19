@@ -1,50 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 import { FolderPlus } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
-import { useCreateSpace, useMoveDocument } from '../api';
+import { useCreateSpace, useMoveDocument, useUploadDocument } from '../api';
 import type { DocumentRow, SessionUser, SpaceRow } from '../types';
 import { AuthCard } from './auth-card';
-
-/** `POST /files` then `POST /documents`: the browser uploads, the worker summarises. */
-function useUploadDocument(userSub: string | null) {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (file: File) => {
-      if (!userSub) throw new Error('Not signed in');
-
-      const documentUuid = crypto.randomUUID();
-      const suffix = file.name.includes('.') ? file.name.split('.').pop() : '';
-      const fileName = `uploadedFile${suffix ? `.${suffix}` : ''}`;
-      const key = `student-documents/${userSub}/${documentUuid}/${fileName}`;
-
-      const upload = await fetch(`/files?key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        body: file,
-      });
-      if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
-
-      // `/api/documents` rather than `/documents`: the latter prefix also holds
-      // this app's own document pages, so the dev proxy must not swallow it.
-      const created = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          documentUuid,
-          originalKey: key,
-          fileName: file.name,
-          type: file.type || 'file',
-        }),
-      });
-      if (!created.ok) throw new Error(`Could not create the document (${created.status})`);
-
-      return { documentUuid };
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
-  });
-}
 
 const typeLabel = (type?: string | null) => {
   if (!type) return 'file';

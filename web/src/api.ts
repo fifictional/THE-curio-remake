@@ -119,6 +119,45 @@ export function useCitations(chatUuid: string | null, initial?: CitationRow[]) {
   });
 }
 
+/** `POST /files` then `POST /documents`: the browser uploads, the worker summarises. */
+export function useUploadDocument(userSub: string | null) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      if (!userSub) throw new Error('Not signed in');
+
+      const documentUuid = crypto.randomUUID();
+      const suffix = file.name.includes('.') ? file.name.split('.').pop() : '';
+      const fileName = `uploadedFile${suffix ? `.${suffix}` : ''}`;
+      const key = `student-documents/${userSub}/${documentUuid}/${fileName}`;
+
+      const upload = await fetch(`/files?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        body: file,
+      });
+      if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
+
+      // `/api/documents` rather than `/documents`: the latter prefix also holds
+      // this app's own document pages, so the dev proxy must not swallow it.
+      const created = await fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          documentUuid,
+          originalKey: key,
+          fileName: file.name,
+          type: file.type || 'file',
+        }),
+      });
+      if (!created.ok) throw new Error(`Could not create the document (${created.status})`);
+
+      return { documentUuid };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
+
 /** Creates the first conversation; the greeting sends through it. */
 export function useCreateChat() {
   const qc = useQueryClient();

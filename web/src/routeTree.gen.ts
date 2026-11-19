@@ -15,6 +15,7 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as DocumentsDocumentUuidRouteImport } from './routes/documents.$documentUuid'
 import { Route as MetadataTargetIdRouteImport } from './routes/metadata.$targetId'
 import { Route as SpacesSpaceIdRouteImport } from './routes/spaces.$spaceId'
@@ -49,6 +50,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentsDocumentUuidRoute = DocumentsDocumentUuidRouteImport.update({
   id: '/documents/$documentUuid',
   path: '/documents/$documentUuid',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
+  '/welcome': typeof WelcomeRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
+  '/welcome': typeof WelcomeRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
+  '/welcome': typeof WelcomeRoute
   '/documents/$documentUuid': typeof DocumentsDocumentUuidRoute
   '/metadata/$targetId': typeof MetadataTargetIdRoute
   '/spaces/$spaceId': typeof SpacesSpaceIdRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset'
     | '/settings'
+    | '/welcome'
     | '/documents/$documentUuid'
     | '/metadata/$targetId'
     | '/spaces/$spaceId'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset'
     | '/settings'
+    | '/welcome'
     | '/documents/$documentUuid'
     | '/metadata/$targetId'
     | '/spaces/$spaceId'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset'
     | '/settings'
+    | '/welcome'
     | '/documents/$documentUuid'
     | '/metadata/$targetId'
     | '/spaces/$spaceId'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
+  WelcomeRoute: typeof WelcomeRoute
   DocumentsDocumentUuidRoute: typeof DocumentsDocumentUuidRoute
   MetadataTargetIdRoute: typeof MetadataTargetIdRoute
   SpacesSpaceIdRoute: typeof SpacesSpaceIdRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/documents/$documentUuid': {
       id: '/documents/$documentUuid'
       path: '/documents/$documentUuid'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,
+  WelcomeRoute: WelcomeRoute,
   DocumentsDocumentUuidRoute: DocumentsDocumentUuidRoute,
   MetadataTargetIdRoute: MetadataTargetIdRoute,
   SpacesSpaceIdRoute: SpacesSpaceIdRoute,

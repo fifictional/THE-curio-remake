@@ -10,9 +10,10 @@
 import { rm } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Context } from 'hono';
 
+import { getValidatedBody, validateBody } from '../middleware/validate';
 import { asUser } from '../db/scope';
 import { serviceDb } from '../db/service-client';
 import {
@@ -21,14 +22,77 @@ import {
   documents,
   flashcards,
   messages,
+  metadata,
   quizzes,
   spaces,
   users,
 } from '../db/schema';
 import { deleteUserVectors } from '../qdrant';
 import type { HonoEnv } from '../types';
+import { z } from 'zod';
 
 type Identity = { sub: string; email?: string } | null;
+
+/**
+ * Onboarding answers + the completion flag.
+ *
+ * Counselled into one endpoint rather than the bridge: `UserProfile` maps to the
+ * `users` table, which has no RLS (Better Auth writes it before a user context
+ * exists), so a generic update would let any caller change any row. This touches
+ * only the caller's own row.
+ */
+export const OnboardingArgs = z.object({
+  // Skipping from step 1 sends nulls for the answers, which is fine.
+  lifestage: z.string().max(60).nullish(),
+  intents: z.array(z.string().max(60)).max(10).nullish(),
+  completed: z.boolean().optional(),
+  skipped: z.boolean().optional(),
+});
+
+export const onboardingValidate = validateBody(OnboardingArgs);
+
+export async function saveOnboarding(c: Context<HonoEnv>): Promise<Response> {
+  const identity = c.var.identity as Identity;
+  if (!identity) return c.json({ success: false, error: 'Not signed in' }, 401);
+
+  const input = getValidatedBody<typeof OnboardingArgs>(c);
+
+  if (input.lifestage || input.intents?.length) {
+    await serviceDb.delete(metadata).where(
+      and(
+        eq(metadata.targetUuid, identity.sub),
+        eq(metadata.targetType, 'user'),
+        inArray(metadata.name, ['lifestage', 'intents']),
+      ),
+    );
+
+    const rows = [];
+    if (input.lifestage) rows.push({ name: 'lifestage', value: input.lifestage });
+    if (input.intents?.length) rows.push({ name: 'intents', value: input.intents.join(',') });
+    for (const row of rows) {
+      await serviceDb.insert(metadata).values({
+        metadataUuid: crypto.randomUUID(),
+        targetUuid: identity.sub,
+        targetType: 'user',
+        name: row.name,
+        value: row.value,
+      });
+    }
+  }
+
+  if (input.completed || input.skipped) {
+    await serviceDb
+      .update(users)
+      .set({
+        onboardingCompleted: Boolean(input.completed),
+        onboardingSkipped: Boolean(input.skipped),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, identity.sub));
+  }
+
+  return c.json({ success: true });
+}
 
 const FILES_ROOT = () => process.env.FILES_DIR ?? '.local/files';
 

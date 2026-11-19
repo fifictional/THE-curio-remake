@@ -51,6 +51,7 @@ describe('loadChatPage', () => {
 
     expect(data).toEqual({
       user: null,
+      onboardingCompleted: false,
       firstName: null,
       chatUuid: null,
       chatName: null,

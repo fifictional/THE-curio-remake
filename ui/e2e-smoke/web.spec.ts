@@ -53,6 +53,12 @@ test('new UI: signed-out gates, a throwaway account, and the empty states', asyn
   });
   expect(signIn.status(), 'sign-in').toBe(200);
 
+  // A brand-new account lands in onboarding: one click to skip it.
+  await page.goto(`${WEB}/`, { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL(/\/welcome$/);
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+  await expect(page).toHaveURL(new RegExp(`${WEB.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?$`));
+
   // Library: empty state, not a crash.
   await page.goto(`${WEB}/library`, { waitUntil: 'networkidle' });
   // The sidebar also says "Your library", so anchor on the heading and the copy.

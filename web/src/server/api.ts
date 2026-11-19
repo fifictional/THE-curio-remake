@@ -16,6 +16,7 @@ import {
   loadMetadataData,
   loadProfileData,
   loadShellData,
+  loadWelcomeData,
   loadSettingsData,
   loadSpaceData,
   type ChatPageData,
@@ -24,6 +25,7 @@ import {
   type MetadataPageData,
   type ProfilePageData,
   type ShellData,
+  type WelcomeData,
   type SettingsData,
   type SpacePageData,
 } from './loaders';
@@ -37,6 +39,7 @@ export type {
   SettingsData,
   ShellData,
   SpacePageData,
+  WelcomeData,
 };
 
 export const loadChatPage = createServerFn({ method: 'GET' })
@@ -69,4 +72,8 @@ export const loadMetadata = createServerFn({ method: 'GET' })
 
 export const loadShell = createServerFn({ method: 'GET' }).handler(
   (): Promise<ShellData> => loadShellData(),
+);
+
+export const loadWelcome = createServerFn({ method: 'GET' }).handler(
+  (): Promise<WelcomeData> => loadWelcomeData(),
 );

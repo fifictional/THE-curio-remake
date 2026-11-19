@@ -25,9 +25,9 @@ Last updated: 2026-11-19.
 | `/metadata/[targetId]` | metadata rows for an entity | **done** |
 | `/signin`, `/login`, `/signup` | auth | **done** (`/`, `/forgot`, `/reset`) |
 | `/reset` | password reset | **done** |
-| `/onboarding` | first-run flow | **missing** |
-| `/onboarding/demo/[docUuid]` | demo document tour | **missing** |
-| `/welcome`, `/welcome/end` | post-signup welcome | **missing** |
+| `/onboarding` | first-run flow | **done** — rebuilt as `/welcome`: lifestage → intents → first document; the old pricing step is gone with payments |
+| `/onboarding/demo/[docUuid]` | demo document tour | **missing** (the tour pointed at the dropped practice flows) |
+| `/welcome`, `/welcome/end` | post-signup welcome | **done** — one screen with three steps, ends in the chat instead of `/welcome/end` |
 | `/companion/upload` | desktop-companion upload | **missing** |
 | `/exam-bundles` | pricing / bundles | **partial** — pricing page exists in `ui/` only; checkout is **blocked** on payments |
 | `/gifting`, `/gifting/success` | gift a subscription | **blocked** (payments) |
@@ -72,8 +72,7 @@ a browser check:
 1. ~~Folder management — rename, delete, file chats; sharing with invite/levels~~ (done)
 2. **Chat actions** — rename, delete, move to folder, copy message.
 3. ~~Document completeness — in-app PDF viewer, delete, per-document chat, tabs~~ (done)
-4. **Onboarding / welcome** — needs the flow defined (it referenced the dropped
-   features, so it has to be rebuilt, not ported).
+4. ~~Onboarding / welcome — rebuilt as lifestage → intents → first document~~ (done)
 5. **Memory** — bridge models + toggle/export UI (real value needs an AI key).
 6. **Chat tools** — flashcard/quiz generation (needs the tool pipeline and a key).
 7. **Blocked**: payments, admin, OCR — decide first, then build.

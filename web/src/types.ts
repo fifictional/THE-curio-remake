@@ -10,6 +10,7 @@ export interface SessionUser {
   sub: string;
   email?: string;
   name?: string | null;
+  onboardingCompleted?: boolean;
 }
 
 export interface Chat {

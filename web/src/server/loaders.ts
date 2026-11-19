@@ -26,7 +26,8 @@ import { isUuid } from '../lib/uuid';
 import { apiFetch } from './fetch.server';
 
 export interface ChatPageData {
-  user: SessionUser | null;
+  user: (SessionUser & { onboardingCompleted?: boolean }) | null;
+  onboardingCompleted: boolean;
   firstName: string | null;
   chatUuid: string | null;
   chatName: string | null;
@@ -43,6 +44,7 @@ export async function loadChatPageData(
   if (!session?.user) {
     return {
       user: null,
+      onboardingCompleted: false,
       firstName: null,
       chatUuid: null,
       chatName: null,
@@ -99,6 +101,9 @@ export async function loadChatPageData(
 
   return {
     user: session.user,
+    onboardingCompleted: Boolean(
+      (session.user as { onboardingCompleted?: boolean }).onboardingCompleted,
+    ),
     firstName,
     chatUuid,
     chatName: chatRow?.data?.name ?? null,
@@ -457,5 +462,21 @@ export async function loadShellData(): Promise<ShellData> {
     chats: chats?.data ?? [],
     documents: documents?.data ?? [],
     spaces: spaces?.data ?? [],
+  };
+}
+
+export interface WelcomeData {
+  user: (SessionUser & { onboardingCompleted?: boolean }) | null;
+  firstName: string | null;
+}
+
+export async function loadWelcomeData(): Promise<WelcomeData> {
+  const session = await apiFetch<{ user: SessionUser }>('/me');
+  if (!session?.user) return { user: null, firstName: null };
+
+  const name = session.user.name ?? '';
+  return {
+    user: session.user,
+    firstName: name.trim().split(' ')[0] || session.user.email?.split('@')[0] || null,
   };
 }

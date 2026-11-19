@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 import App from '../components/chat-app';
 import { loadChatPage } from '../server/api';
@@ -14,7 +14,14 @@ export const Route = createFileRoute('/')({
     chat: typeof search.chat === 'string' && search.chat ? search.chat : undefined,
   }),
   loaderDeps: ({ search }) => ({ chat: search.chat }),
-  loader: ({ deps }) => loadChatPage({ data: { chatUuid: deps.chat } }),
+  loader: async ({ deps }) => {
+    const data = await loadChatPage({ data: { chatUuid: deps.chat } });
+    // A brand-new account (or one that never finished) starts in onboarding.
+    if (data.user && !data.onboardingCompleted) {
+      throw redirect({ to: '/welcome' });
+    }
+    return data;
+  },
   component: ChatPage,
 });
 

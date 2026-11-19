@@ -8,10 +8,11 @@
  *   - `auth` can be disabled for unit tests, which keeps them hermetic.
  */
 
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { serviceDb } from './db/service-client';
+import { users } from './db/schema';
 
 import { auth } from './auth';
 import { createFakeDataClient, type RecordedCall } from './fake-data';
@@ -26,6 +27,10 @@ import { createDocument, createDocumentValidate } from './routes/documents';
 import { limits } from './middleware/rate-limit';
 import { requireAuth } from './middleware/require-auth';
 import { deleteAccount, exportAccount } from './routes/account';
+import {
+  onboardingValidate,
+  saveOnboarding,
+} from './routes/account';
 import {
   inviteMember,
   inviteValidate,
@@ -155,12 +160,32 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ success: true, cleared: true });
   });
 
-  app.get('/me', (c) => {
+  app.get('/me', async (c) => {
     const identity = c.var.identity as
       | { sub: string; email?: string; name?: string | null }
       | null;
     if (!identity) return c.json({ authenticated: false }, 401);
-    return c.json({ authenticated: true, user: identity });
+
+    // The flag lives on the user row, not in the session: onboarding completes
+    // after the session was created.
+    const [row] = await serviceDb
+      .select({
+        completed: users.onboardingCompleted,
+        skipped: users.onboardingSkipped,
+      })
+      .from(users)
+      .where(eq(users.id, identity.sub))
+      .limit(1);
+
+    return c.json({
+      authenticated: true,
+      user: {
+        ...identity,
+        // "Skipped" still means "has seen it": otherwise skipping bounces the
+        // user straight back into the flow.
+        onboardingCompleted: Boolean(row?.completed || row?.skipped),
+      },
+    });
   });
 
   const messagesRoute = createMessagesRoute();
@@ -200,6 +225,7 @@ export function createApp(opts: AppOptions = {}) {
   app.post('/api/spaces/:spaceUuid/members', requireAuth, inviteValidate, inviteMember);
   app.delete('/api/spaces/:spaceUuid/members/:userUuid', requireAuth, removeMember);
 
+  app.post('/api/account/onboarding', requireAuth, onboardingValidate, saveOnboarding);
   app.get('/account/export', requireAuth, exportAccount);
   app.delete('/account', requireAuth, limits.account, deleteAccount);
 
