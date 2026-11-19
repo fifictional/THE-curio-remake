@@ -53,6 +53,9 @@ describe('loadChatPage', () => {
       user: null,
       firstName: null,
       chatUuid: null,
+      chatName: null,
+      chatSpaceUuid: null,
+      spaces: [],
       messages: [],
       citations: [],
     });

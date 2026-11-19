@@ -150,6 +150,56 @@ export function useCreateSpace() {
   });
 }
 
+export function useRenameSpace() {
+  return useMutation({
+    mutationFn: ({ spaceUuid, name }: { spaceUuid: string; name: string }) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Space', method: 'update', args: { spaceUuid, name } }),
+      }),
+  });
+}
+
+export function useDeleteSpace() {
+  return useMutation({
+    mutationFn: (spaceUuid: string) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Space', method: 'delete', args: { spaceUuid } }),
+      }),
+  });
+}
+
+export function useMoveChat() {
+  return useMutation({
+    mutationFn: ({ chatUuid, spaceUuid }: { chatUuid: string; spaceUuid: string | null }) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Chat', method: 'update', args: { chatUuid, spaceUuid } }),
+      }),
+  });
+}
+
+export function useRenameChat() {
+  return useMutation({
+    mutationFn: ({ chatUuid, name }: { chatUuid: string; name: string }) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Chat', method: 'update', args: { chatUuid, name } }),
+      }),
+  });
+}
+
+export function useDeleteChat() {
+  return useMutation({
+    mutationFn: (chatUuid: string) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Chat', method: 'delete', args: { chatUuid } }),
+      }),
+  });
+}
+
 export function useMoveDocument() {
   return useMutation({
     mutationFn: ({ documentUuid, spaceUuid }: { documentUuid: string; spaceUuid: string | null }) =>

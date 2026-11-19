@@ -5,14 +5,17 @@ import { useRef, useState } from 'react';
 import { AuthCard } from './auth-card';
 import { FloatingNav } from './app-shell';
 import { Markdown } from '../lib/markdown';
-import type { CitationRow, Message, SessionUser } from '../types';
+import type { CitationRow, Message, SessionUser, SpaceRow } from '../types';
 import {
   useAiChat,
   useCitations,
   useCreateChat,
+  useDeleteChat,
   useMe,
   useMessages,
+  useMoveChat,
   useRagSearch,
+  useRenameChat,
 } from '../api';
 
 /**
@@ -144,14 +147,115 @@ function Greeting({ firstName }: { firstName: string | null }) {
   );
 }
 
+function ChatHeader({
+  chatUuid,
+  name,
+  spaceUuid,
+  spaces,
+}: {
+  chatUuid: string;
+  name: string | null;
+  spaceUuid: string | null;
+  spaces: SpaceRow[];
+}) {
+  const rename = useRenameChat();
+  const move = useMoveChat();
+  const remove = useDeleteChat();
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name ?? '');
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <div className="flex items-center gap-2 border-b border-black/5 px-6 py-3">
+      {editing ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!draft.trim()) return;
+            await rename.mutateAsync({ chatUuid, name: draft.trim() });
+            setEditing(false);
+          }}
+        >
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-curio-green/20"
+          />
+          <button type="submit" className="text-xs underline">
+            Save
+          </button>
+        </form>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="truncate text-sm font-medium text-foreground"
+          title="Rename chat"
+        >
+          {name || 'Untitled chat'}
+        </button>
+      )}
+
+      <label className="ml-auto flex items-center gap-1 text-xs text-headers">
+        <span>Folder</span>
+        <select
+          value={spaceUuid ?? ''}
+          onChange={(e) => move.mutate({ chatUuid, spaceUuid: e.target.value || null })}
+          className="rounded-lg border border-black/10 bg-white px-2 py-1 text-xs text-foreground"
+        >
+          <option value="">None</option>
+          {spaces.map((space) => (
+            <option key={space.spaceUuid} value={space.spaceUuid}>
+              {space.name || 'Untitled folder'}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {confirming ? (
+        <>
+          <button
+            onClick={async () => {
+              await remove.mutateAsync(chatUuid);
+              await navigate({ to: '/', search: { chat: undefined } });
+            }}
+            className="rounded-lg bg-red-600 px-2 py-1 text-xs text-white"
+          >
+            Delete chat
+          </button>
+          <button onClick={() => setConfirming(false)} className="text-xs underline">
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => setConfirming(true)}
+          title="Delete chat"
+          className="text-xs text-headers underline hover:text-red-600"
+        >
+          Delete
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ChatView({
   chatUuid,
   initialMessages,
   initialCitations,
+  chatName,
+  chatSpaceUuid,
+  spaces,
 }: {
   chatUuid: string;
   initialMessages: Message[];
   initialCitations: CitationRow[];
+  chatName: string | null;
+  chatSpaceUuid: string | null;
+  spaces: SpaceRow[];
 }) {
   const messages = useMessages(chatUuid, initialMessages);
   const aiChat = useAiChat(chatUuid);
@@ -161,6 +265,12 @@ function ChatView({
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
+        <ChatHeader
+          chatUuid={chatUuid}
+          name={chatName}
+          spaceUuid={chatSpaceUuid}
+          spaces={spaces}
+        />
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto w-full max-w-3xl space-y-6">
             {messages.isLoading && <p className="text-sm text-headers">Loading…</p>}
@@ -254,6 +364,9 @@ export default function App({
     user: SessionUser | null;
     firstName: string | null;
     chatUuid: string | null;
+    chatName: string | null;
+    chatSpaceUuid: string | null;
+    spaces: SpaceRow[];
     messages: Message[];
     citations: CitationRow[];
   };
@@ -270,6 +383,9 @@ export default function App({
       chatUuid={initial.chatUuid}
       initialMessages={initial.messages}
       initialCitations={initial.citations}
+      chatName={initial.chatName}
+      chatSpaceUuid={initial.chatSpaceUuid}
+      spaces={initial.spaces}
     />
   ) : (
     <Greeting firstName={initial.firstName} />

@@ -28,6 +28,9 @@ export interface ChatPageData {
   user: SessionUser | null;
   firstName: string | null;
   chatUuid: string | null;
+  chatName: string | null;
+  chatSpaceUuid: string | null;
+  spaces: SpaceRow[];
   messages: Message[];
   citations: CitationRow[];
 }
@@ -37,7 +40,16 @@ export async function loadChatPageData(
 ): Promise<ChatPageData> {
   const session = await apiFetch<{ user: SessionUser }>('/me');
   if (!session?.user) {
-    return { user: null, firstName: null, chatUuid: null, messages: [], citations: [] };
+    return {
+      user: null,
+      firstName: null,
+      chatUuid: null,
+      chatName: null,
+      chatSpaceUuid: null,
+      spaces: [],
+      messages: [],
+      citations: [],
+    };
   }
 
   const name = session.user.name ?? '';
@@ -49,6 +61,19 @@ export async function loadChatPageData(
    * message — see `useStartChat` in the client.
    */
   const chatUuid: string | null = isUuid(data.chatUuid) ? data.chatUuid : null;
+
+  const [chatRow, spaces] = await Promise.all([
+    chatUuid
+      ? apiFetch<{ data: { name?: string | null; spaceUuid?: string | null } | null }>('/db', {
+          method: 'POST',
+          body: JSON.stringify({ model: 'Chat', method: 'get', args: { chatUuid } }),
+        })
+      : Promise.resolve(null),
+    apiFetch<{ data: SpaceRow[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'Space', method: 'list', options: { limit: 100 } }),
+    }),
+  ]);
 
   const messages = chatUuid
     ? ((await apiFetch<{ messages: Message[] }>(
@@ -71,7 +96,16 @@ export async function loadChatPageData(
       )?.data ?? [])
     : [];
 
-  return { user: session.user, firstName, chatUuid, messages, citations };
+  return {
+    user: session.user,
+    firstName,
+    chatUuid,
+    chatName: chatRow?.data?.name ?? null,
+    chatSpaceUuid: chatRow?.data?.spaceUuid ?? null,
+    spaces: spaces?.data ?? [],
+    messages,
+    citations,
+  };
 }
 
 export interface SpacePageData {

@@ -1,5 +1,8 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
+import { Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
+import { useDeleteSpace, useRenameSpace } from '../api';
 import type { Chat, DocumentRow, SessionUser, SpaceRow } from '../types';
 import { AuthCard } from './auth-card';
 
@@ -14,6 +17,12 @@ export function Space({
   chats: Chat[];
   documents: DocumentRow[];
 }) {
+  const rename = useRenameSpace();
+  const remove = useDeleteSpace();
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(space?.name ?? '');
+  const [confirming, setConfirming] = useState(false);
   if (!user) {
     return (
       <div className="mx-auto w-full max-w-md px-6 pt-16">
@@ -43,10 +52,89 @@ export function Space({
       <Link to="/library" className="text-xs text-headers underline">
         ← Library
       </Link>
-      <h1 className="mt-1 font-roca text-2xl text-foreground">{space.name || 'Untitled folder'}</h1>
+
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        {editing ? (
+          <form
+            className="flex items-center gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!name.trim()) return;
+              await rename.mutateAsync({ spaceUuid: space.spaceUuid, name: name.trim() });
+              setEditing(false);
+              void router.invalidate();
+            }}
+          >
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1 text-lg outline-none focus:ring-2 focus:ring-curio-green/20"
+            />
+            <button type="submit" className="rounded-lg bg-curio-green px-3 py-1 text-xs text-white">
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setName(space.name ?? '');
+              }}
+              className="text-xs text-headers underline"
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <>
+            <h1 className="font-roca text-2xl text-foreground">
+              {space.name || 'Untitled folder'}
+            </h1>
+            <button
+              onClick={() => setEditing(true)}
+              aria-label="Rename folder"
+              className="text-headers hover:text-foreground"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </>
+        )}
+
+        <span className="ml-auto flex items-center gap-2">
+          {confirming ? (
+            <>
+              <span className="text-xs text-headers">Delete this folder?</span>
+              <button
+                onClick={async () => {
+                  await remove.mutateAsync(space.spaceUuid);
+                  await router.navigate({ to: '/library' });
+                  void router.invalidate();
+                }}
+                className="rounded-lg bg-red-600 px-3 py-1 text-xs text-white"
+              >
+                Delete
+              </button>
+              <button onClick={() => setConfirming(false)} className="text-xs underline">
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              aria-label="Delete folder"
+              className="text-headers hover:text-red-600"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </span>
+      </div>
+
       <p className="mt-1 text-xs text-headers">
         {chats.length} chat{chats.length === 1 ? '' : 's'} · {documents.length} document
         {documents.length === 1 ? '' : 's'}
+        {' · '}
+        documents are filed from the library
       </p>
 
       <section className="mt-6">
