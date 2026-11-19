@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
+import { FolderPlus } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
+import { useCreateSpace, useMoveDocument } from '../api';
 import type { DocumentRow, SessionUser, SpaceRow } from '../types';
 import { AuthCard } from './auth-card';
 
@@ -52,14 +54,22 @@ const typeLabel = (type?: string | null) => {
   return (ext ?? type).toUpperCase();
 };
 
-function DocumentCard({ document }: { document: DocumentRow }) {
+function DocumentCard({
+  document,
+  spaces,
+  onMove,
+}: {
+  document: DocumentRow;
+  spaces: SpaceRow[];
+  onMove: (spaceUuid: string | null) => void;
+}) {
   return (
-    <Link
-      to="/documents/$documentUuid"
-      params={{ documentUuid: document.documentUuid }}
-      className="flex items-center justify-between gap-4 rounded-xl border border-chat-panel-border bg-chat-panel px-4 py-3 hover:border-curio-green/40"
-    >
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-chat-panel-border bg-chat-panel px-4 py-3 hover:border-curio-green/40">
+      <Link
+        to="/documents/$documentUuid"
+        params={{ documentUuid: document.documentUuid }}
+        className="min-w-0 flex-1"
+      >
         <p className="truncate text-sm font-medium text-foreground">
           {document.fileName || 'Untitled document'}
         </p>
@@ -69,9 +79,32 @@ function DocumentCard({ document }: { document: DocumentRow }) {
             ? ` · ${new Date(document.createdAt).toLocaleDateString()}`
             : ''}
         </p>
-      </div>
-      <span className="shrink-0 text-xs text-headers">Open →</span>
-    </Link>
+      </Link>
+
+      <label className="shrink-0 text-xs text-headers">
+        <span className="sr-only">Move to folder</span>
+        <select
+          value={document.spaceUuid ?? ''}
+          onChange={(e) => onMove(e.target.value || null)}
+          className="max-w-[11rem] rounded-lg border border-black/10 bg-white px-2 py-1 text-xs text-foreground"
+        >
+          <option value="">Unfiled</option>
+          {spaces.map((space) => (
+            <option key={space.spaceUuid} value={space.spaceUuid}>
+              {space.name || 'Untitled folder'}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <Link
+        to="/documents/$documentUuid"
+        params={{ documentUuid: document.documentUuid }}
+        className="shrink-0 text-xs text-headers"
+      >
+        Open →
+      </Link>
+    </div>
   );
 }
 
@@ -85,8 +118,17 @@ export function Library({
   spaces: SpaceRow[];
 }) {
   const [query, setQuery] = useState('');
+  const [newFolder, setNewFolder] = useState('');
+  const [creating, setCreating] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useUploadDocument(user?.sub ?? null);
+  const createSpace = useCreateSpace();
+  const moveDocument = useMoveDocument();
+  const router = useRouter();
+
+  const refresh = () => {
+    void router.invalidate();
+  };
 
   const documents = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -95,6 +137,8 @@ export function Library({
       (d.fileName ?? '').toLowerCase().includes(needle),
     );
   }, [initialDocuments, query]);
+
+  const unfiled = documents.filter((doc) => !doc.spaceUuid);
 
   // Hooks first: an early return above them would break the rules of hooks.
   if (!user) {
@@ -146,33 +190,137 @@ export function Library({
         </p>
       )}
 
-      {spaces.length > 0 && (
-        <div className="mt-6">
+      {/* Folders: create one here, and see how many documents are in each. */}
+      <div className="mt-6 rounded-2xl border border-chat-panel-border bg-chat-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs uppercase tracking-wide text-headers">Folders</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {spaces.map((space) => (
+          {creating ? (
+            <form
+              className="flex items-center gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const name = newFolder.trim();
+                if (!name) return;
+                await createSpace.mutateAsync(name);
+                setNewFolder('');
+                setCreating(false);
+                refresh();
+              }}
+            >
+              <input
+                autoFocus
+                value={newFolder}
+                onChange={(e) => setNewFolder(e.target.value)}
+                placeholder="Folder name"
+                className="w-44 rounded-lg border border-black/10 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-curio-green/20"
+              />
+              <button
+                type="submit"
+                disabled={createSpace.isPending || !newFolder.trim()}
+                className="rounded-lg bg-curio-green px-3 py-1 text-xs font-medium text-white disabled:opacity-40"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreating(false);
+                  setNewFolder('');
+                }}
+                className="text-xs text-headers underline"
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-1 text-xs text-foreground underline"
+            >
+              <FolderPlus className="h-4 w-4" />
+              New folder
+            </button>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {spaces.map((space) => {
+            const count = initialDocuments.filter((d) => d.spaceUuid === space.spaceUuid).length;
+            return (
               <Link
                 key={space.spaceUuid}
                 to="/spaces/$spaceId"
                 params={{ spaceId: space.spaceUuid }}
-                className="rounded-full border border-chat-panel-border bg-chat-panel px-3 py-1 text-sm text-foreground hover:border-curio-green/40"
+                className="rounded-xl border border-chat-panel-border bg-white px-3 py-2 text-sm text-foreground hover:border-curio-green/40"
               >
                 {space.name || 'Untitled folder'}
+                <span className="ml-1 text-xs text-headers">{count}</span>
               </Link>
-            ))}
-          </div>
+            );
+          })}
+          {spaces.length === 0 && (
+            <p className="text-sm text-headers">
+              No folders yet — create one, then file documents into it with the selector on
+              each row.
+            </p>
+          )}
         </div>
-      )}
+      </div>
 
       <p className="mt-6 text-xs uppercase tracking-wide text-headers">
         {documents.length} document{documents.length === 1 ? '' : 's'}
         {spaces.length ? ` · ${spaces.length} folder${spaces.length === 1 ? '' : 's'}` : ''}
       </p>
 
-      <div className="mt-3 grid gap-2">
-        {documents.map((document) => (
-          <DocumentCard key={document.documentUuid} document={document} />
-        ))}
+      <div className="mt-3 space-y-6">
+        {spaces.map((space) => {
+          const inFolder = documents.filter((d) => d.spaceUuid === space.spaceUuid);
+          if (inFolder.length === 0) return null;
+          return (
+            <section key={space.spaceUuid}>
+              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                {space.name || 'Untitled folder'}
+                <span className="text-xs font-normal text-headers">{inFolder.length}</span>
+              </h2>
+              <div className="grid gap-2">
+                {inFolder.map((document) => (
+                  <DocumentCard
+                    key={document.documentUuid}
+                    document={document}
+                    spaces={spaces}
+                    onMove={async (spaceUuid) => {
+                      await moveDocument.mutateAsync({ documentUuid: document.documentUuid, spaceUuid });
+                      refresh();
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        <section>
+          {spaces.length > 0 && (
+            <h2 className="mb-2 text-sm font-semibold text-foreground">
+              Unfiled
+              <span className="ml-2 text-xs font-normal text-headers">{unfiled.length}</span>
+            </h2>
+          )}
+          <div className="grid gap-2">
+            {unfiled.map((document) => (
+              <DocumentCard
+                key={document.documentUuid}
+                document={document}
+                spaces={spaces}
+                onMove={async (spaceUuid) => {
+                  await moveDocument.mutateAsync({ documentUuid: document.documentUuid, spaceUuid });
+                  refresh();
+                }}
+              />
+            ))}
+          </div>
+        </section>
+
         {documents.length === 0 && (
           <p className="rounded-xl border border-dashed border-chat-panel-border p-6 text-center text-sm text-headers">
             {query ? 'No documents match that search.' : 'Nothing here yet — upload a PDF to start.'}

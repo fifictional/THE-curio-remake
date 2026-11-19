@@ -135,6 +135,35 @@ export function useCreateChat() {
   });
 }
 
+/**
+ * Folders are `Space` rows. Creating one and filing a document are the two
+ * mutations the library needs; both go through the bridge, which defaults
+ * ownership to the caller and enforces it with RLS.
+ */
+export function useCreateSpace() {
+  return useMutation({
+    mutationFn: (name: string) =>
+      json<{ data: { spaceUuid?: string } | null }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Space', method: 'create', args: { name } }),
+      }),
+  });
+}
+
+export function useMoveDocument() {
+  return useMutation({
+    mutationFn: ({ documentUuid, spaceUuid }: { documentUuid: string; spaceUuid: string | null }) =>
+      json<{ data: unknown }>('/db', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'Document',
+          method: 'update',
+          args: { documentUuid, spaceUuid },
+        }),
+      }),
+  });
+}
+
 export function useAiChat(chatUuid: string) {
   const qc = useQueryClient();
   return useMutation({
