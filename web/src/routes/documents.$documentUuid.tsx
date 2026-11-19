@@ -17,6 +17,7 @@ function DocumentPage() {
       summary={data.summary}
       flashcards={data.flashcards}
       quizzes={data.quizzes}
+      chatUuid={data.chatUuid}
     />
   );
 }

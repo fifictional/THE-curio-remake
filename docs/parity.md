@@ -16,7 +16,7 @@ Last updated: 2026-11-19.
 | `/` | greeting, create a chat | **done** — greeting, first message creates the chat |
 | `/chats/[chatUuid]` | open a conversation, sources panel, tools | **partial** — messages, markdown/maths, citations, polling, ceiling: no tool cards, no rename/delete, no attachments, no web search |
 | `/library` | documents + folders, upload, analytics | **partial** — list, search, upload, **folders (create/file), grouping**; missing delete, upload task status, folder rename/delete |
-| `/documents/[docUuid]` | PDF viewer + summary + chat + flashcards + quiz tabs | **partial** — summary, study material read-only, file link; missing in-app PDF viewer, document chat, tabs |
+| `/documents/[docUuid]` | PDF viewer + summary + chat + flashcards + quiz tabs | **done** — tabs (Summary / Document / Chat / Flashcards / Quiz), in-app PDF viewer through `/files`, document's own saved conversation, delete. Generation still missing (see below) |
 | `/spaces/[spaceId]` | folder: chats, documents, flashcards, quizzes | **partial** — chats, documents, rename/delete, **sharing (invite/levels/remove)**; missing flashcards/quiz tabs |
 | `/spaces/[spaceId]/chats/[chatUuid]` | chat inside a folder | **done** (via `/?chat=`) |
 | `/spaces/[spaceId]/documents/[docUuid]` | document inside a folder | **done** (via `/documents/<uuid>`) |
@@ -42,15 +42,15 @@ Last updated: 2026-11-19.
 | Chat tools (create flashcards / quiz from a message) | yes | **missing** — the server has no tool pipeline; cards are view-only |
 | Flashcard & quiz **generation** | yes | **missing** (needs the tool pipeline + a key) |
 | Flashcards/quiz **review** per document/space | yes | **done** (read-only list on the document page) |
-| Document chat (one chat per document) | yes | **partial** — chats exist in data; no per-document entry point |
-| Document deletion | yes | **missing** in the UI (bridge supports it) |
+| Document chat (one chat per document) | yes | **done** — the Chat tab creates the document's chat on first message and reuses it |
+| Document deletion | yes | **done** (confirm, then cascades summaries/tasks/chunks) |
 | Chat rename / delete | yes | **missing** (bridge supports it) |
 | Move chat/document between folders | yes | **partial** — documents yes, chats no |
 | Folder rename / delete | yes | **missing** |
 | Folder **sharing** (owner/editor/viewer via `space_users`) | yes | **done** — invite by email, levels enforced by RLS (viewers read, editors write), removal; `spaces`/`documents`/`chats` policies admit members |
 | Memory (persistent learner memory): toggle, blocks, export, backfill | yes | **missing** — tables and migrated rows exist, no UI, no bridge models |
 | Global search (documents, chats) | via library search | **partial** — library search only |
-| In-app PDF viewer | yes | **missing** |
+| In-app PDF viewer | yes | **done** (browser engine via `/files`; other types fall back to a download link) |
 | Attachments / image messages | yes | **missing** |
 | Web search with URL citations | yes | **missing** (citations are document-based now) |
 | Message actions (copy, vote up/down) | yes | **missing** |
@@ -71,7 +71,7 @@ a browser check:
 
 1. ~~Folder management — rename, delete, file chats; sharing with invite/levels~~ (done)
 2. **Chat actions** — rename, delete, move to folder, copy message.
-3. **Document completeness** — in-app PDF viewer, delete, per-document chat, tabs.
+3. ~~Document completeness — in-app PDF viewer, delete, per-document chat, tabs~~ (done)
 4. **Onboarding / welcome** — needs the flow defined (it referenced the dropped
    features, so it has to be rebuilt, not ported).
 5. **Memory** — bridge models + toggle/export UI (real value needs an AI key).

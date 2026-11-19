@@ -123,10 +123,16 @@ export function useCitations(chatUuid: string | null, initial?: CitationRow[]) {
 export function useCreateChat() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<string | null> => {
+    mutationFn: async (
+      input: { name?: string; documentUuid?: string } = {},
+    ): Promise<string | null> => {
       const res = await json<{ data: { chatUuid?: string } | null }>('/db', {
         method: 'POST',
-        body: JSON.stringify({ model: 'Chat', method: 'create', args: { name: 'New chat' } }),
+        body: JSON.stringify({
+          model: 'Chat',
+          method: 'create',
+          args: { name: input.name ?? 'New chat', documentUuid: input.documentUuid },
+        }),
       });
       const chatUuid = res.data?.chatUuid ?? null;
       if (chatUuid) qc.invalidateQueries({ queryKey: ['me'] });
@@ -196,6 +202,16 @@ export function useDeleteChat() {
       json('/db', {
         method: 'POST',
         body: JSON.stringify({ model: 'Chat', method: 'delete', args: { chatUuid } }),
+      }),
+  });
+}
+
+export function useDeleteDocument() {
+  return useMutation({
+    mutationFn: (documentUuid: string) =>
+      json('/db', {
+        method: 'POST',
+        body: JSON.stringify({ model: 'Document', method: 'delete', args: { documentUuid } }),
       }),
   });
 }

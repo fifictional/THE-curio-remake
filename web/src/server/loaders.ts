@@ -239,6 +239,8 @@ export interface DocumentPageData {
   summary: DocumentSummaryRow | null;
   flashcards: FlashcardRow[];
   quizzes: QuizRow[];
+  /** The document's own conversation, if one exists. */
+  chatUuid: string | null;
 }
 
 export async function loadDocumentData(data: {
@@ -246,10 +248,24 @@ export async function loadDocumentData(data: {
 }): Promise<DocumentPageData> {
   const session = await apiFetch<{ user: SessionUser }>('/me');
   if (!session?.user) {
-    return { user: null, document: null, summary: null, flashcards: [], quizzes: [] };
+    return {
+      user: null,
+      document: null,
+      summary: null,
+      flashcards: [],
+      quizzes: [],
+      chatUuid: null,
+    };
   }
   if (!isUuid(data.documentUuid)) {
-    return { user: session.user, document: null, summary: null, flashcards: [], quizzes: [] };
+    return {
+      user: session.user,
+      document: null,
+      summary: null,
+      flashcards: [],
+      quizzes: [],
+      chatUuid: null,
+    };
   }
 
   const document = await apiFetch<{ data: DocumentRow | null }>('/db', {
@@ -262,7 +278,14 @@ export async function loadDocumentData(data: {
   });
 
   if (!document?.data) {
-    return { user: session.user, document: null, summary: null, flashcards: [], quizzes: [] };
+    return {
+      user: session.user,
+      document: null,
+      summary: null,
+      flashcards: [],
+      quizzes: [],
+      chatUuid: null,
+    };
   }
 
   // RLS scopes this to the caller's documents; the bridge sorts newest first.
@@ -278,7 +301,7 @@ export async function loadDocumentData(data: {
 
   // Read-only study material that already exists for this document. Generation
   // is not part of this build (the chat tools that produced it are not ported).
-  const [flashcards, quizzes] = await Promise.all([
+  const [flashcards, quizzes, chats] = await Promise.all([
     apiFetch<{ data: FlashcardRow[] }>('/db', {
       method: 'POST',
       body: JSON.stringify({
@@ -297,6 +320,15 @@ export async function loadDocumentData(data: {
         options: { limit: 50 },
       }),
     }),
+    apiFetch<{ data: Chat[] }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'Chat',
+        method: 'listChatByDocumentUuidAndCreatedAt',
+        args: { documentUuid: data.documentUuid },
+        options: { limit: 1 },
+      }),
+    }),
   ]);
 
   return {
@@ -305,6 +337,7 @@ export async function loadDocumentData(data: {
     summary: summaries?.data?.[0] ?? null,
     flashcards: flashcards?.data ?? [],
     quizzes: quizzes?.data ?? [],
+    chatUuid: chats?.data?.[0]?.chatUuid ?? null,
   };
 }
 
