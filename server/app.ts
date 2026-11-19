@@ -32,6 +32,7 @@ import {
   saveOnboarding,
 } from './routes/account';
 import { createGenerateRoutes, generateValidate, type Generator } from './routes/generate';
+import { billingStatus, checkoutValidate, createCheckout, paddleWebhook } from './routes/billing';
 import {
   clearMemory,
   exportMemory,
@@ -236,6 +237,11 @@ export function createApp(opts: AppOptions = {}) {
   app.delete('/api/spaces/:spaceUuid/members/:userUuid', requireAuth, removeMember);
 
   app.post('/api/account/onboarding', requireAuth, onboardingValidate, saveOnboarding);
+
+  // Billing: the webhook is verified by signature, so it stays unauthenticated.
+  app.post('/webhooks/paddle', paddleWebhook);
+  app.get('/api/billing/status', requireAuth, billingStatus);
+  app.post('/api/billing/checkout', requireAuth, checkoutValidate, createCheckout);
 
   const generate = createGenerateRoutes(opts.generate);
   app.post('/api/ai/generate', requireAuth, generateValidate, generate.handler);

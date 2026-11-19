@@ -28,7 +28,8 @@
     "verify:web": "npm --prefix ui exec -- playwright test -c ui/playwright.smoke.config.ts web.spec.ts",
     "verify": "npm run verify:api && npm run verify:web",
     "lint": "oxlint server scripts && npm --prefix web run lint",
-    "dev:all": "node scripts/dev.mjs"
+    "dev:all": "node scripts/dev.mjs",
+    "ops": "node scripts/ops.mjs"
   },
   "dependencies": {
     "better-auth": "^1.7.23",

@@ -26,6 +26,7 @@ import { serviceDb } from '../db/service-client';
 import { documentSummaries, documents, spaces, tasks } from '../db/schema';
 import { getValidatedBody, validateBody } from '../middleware/validate';
 import { indexDocumentText } from '../document-index';
+import { ocrPdf } from '../ocr';
 import { extractPdfText, looksLikePdf, MAX_TEXT_CHARS } from '../pdf';
 import type { HonoEnv } from '../types';
 
@@ -126,7 +127,15 @@ export async function extractText(key: string): Promise<string | null> {
   try {
     const buffer = await readFile(path);
 
-    if (looksLikePdf(buffer)) return extractPdfText(buffer);
+    if (looksLikePdf(buffer)) {
+      const text = await extractPdfText(buffer);
+      if (text) return text;
+
+      // No text layer: it is a scan. Datalab OCR when configured, otherwise the
+      // caller reports "no text available" honestly.
+      const ocr = await ocrPdf(buffer, key.split('/').pop() ?? 'document.pdf');
+      return ocr ? ocr.slice(0, MAX_TEXT_CHARS) : null;
+    }
 
     if (buffer.byteLength > 2_000_000) return null;
     const text = buffer.toString('utf8');

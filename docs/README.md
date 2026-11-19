@@ -11,6 +11,12 @@ Start here. Everything else is detail.
 | [`open-decisions.md`](open-decisions.md) | you want to know what still needs a human answer, with options and a recommendation |
 | [`parity.md`](parity.md) | you want to know what the old app does that the new one does not, screen by screen |
 | [`deploy.md`](deploy.md) | you are putting this somewhere: topology, env vars, first deploy, rollback |
+
+## Operator CLI
+
+No admin UI by decision; `npm run ops` (or `node scripts/ops.mjs`) does the work:
+`stats`, `users search|show`, `chat <uuid>`, `tasks`, `quarantine`, `memory <email>`,
+plus `--json` for scripting.
 | [`migration-runbook.md`](migration-runbook.md) | you are moving real DynamoDB/S3 data, or provisioning production roles |
 
 ## Reference

@@ -33,7 +33,7 @@ Last updated: 2026-11-19.
 | `/gifting`, `/gifting/success` | gift a subscription | **blocked** (payments) |
 | `/one-dollar`, `/one-dollar/success` | trial offer | **blocked** (payments) |
 | `/partner/[partnerCode]`, `/partner/success/…` | partner pricing | **blocked** (payments) |
-| `/admin/*` (36 routes) | review, statistics, question extraction, knowledge base, bundles, partnerships | **blocked** — no role model; every admin route is unreachable today |
+| `/admin/*` (36 routes) | review, statistics, question extraction, knowledge base, bundles, partnerships | **replaced** — decided against an admin UI: `npm run ops` covers stats, user lookup, chat review, task states, quarantine and memory. The screens stay in `ui/` only |
 
 ## Capabilities that are not screens
 
@@ -55,8 +55,8 @@ Last updated: 2026-11-19.
 | Web search with URL citations | yes | **partial** — the Sources panel renders `url_citation` rows (labelled "Web source"), but producing them needs a web-search-capable model call, i.e. a key **and** a provider decision |
 | Message actions (copy, vote up/down) | **partial** — copy done; votes not ported |
 | Analytics events (Mixpanel) | yes | **missing** (no provider configured) |
-| Billing, tiers, entitlements | yes | **blocked** (payments decision) |
-| OCR for scanned PDFs | via Datalab | **blocked** (provider decision) |
+| Billing, tiers, entitlements | yes | **partial** — Paddle kept: signed webhook writes subscriptions/purchases/receipts (tested locally with a computed signature), `/api/billing/status` reports entitlement, checkout **needs `PADDLE_API_KEY` + price ids** (503 until then). Pricing/gifting/partner pages stay in `ui/` for now |
+| OCR for scanned PDFs | via Datalab | **done, needs a key** — the worker falls back to Datalab when a PDF has no text layer; without `DATALAB_API_KEY` it keeps the honest "no text layer" message |
 | Realtime updates | AppSync subscriptions | **done** differently — 4s polling |
 
 ## Features dropped by decision (2026-11-17)
@@ -75,4 +75,4 @@ a browser check:
 4. ~~Onboarding / welcome — rebuilt as lifestage → intents → first document~~ (done)
 5. ~~Memory — read-only blocks, toggle, export, clear~~ (done; reflection needs a key)
 6. ~~Flashcard/quiz generation — endpoint + document buttons, tested with an injected generator~~ (done; the chat *tool card* variant is still missing)
-7. **Blocked**: payments, admin, OCR — decide first, then build.
+7. ~~Payments (Paddle), admin (ops CLI), OCR (Datalab)~~ — decided and built to the point where each needs a credential
