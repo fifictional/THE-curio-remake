@@ -39,8 +39,8 @@ Last updated: 2026-11-19.
 
 | Capability | Legacy | Replacement |
 |---|---|---|
-| Chat tools (create flashcards / quiz from a message) | yes | **missing** — the server has no tool pipeline; cards are view-only |
-| Flashcard & quiz **generation** | yes | **missing** (needs the tool pipeline + a key) |
+| Chat tools (create flashcards / quiz from a message) | yes | **missing as chat tools** — generation exists as an endpoint (below), not as a tool card inside a conversation |
+| Flashcard & quiz **generation** | yes | **done, needs a key** — `POST /api/ai/generate` on a document or chat, buttons in the document tabs; without `OPENAI_API_KEY` it answers 503 honestly. `quiz_questions` gained the `answer` column the old model never stored, so a quiz can be graded |
 | Flashcards/quiz **review** per document/space | yes | **done** (read-only list on the document page) |
 | Document chat (one chat per document) | yes | **done** — the Chat tab creates the document's chat on first message and reuses it |
 | Document deletion | yes | **done** (confirm, then cascades summaries/tasks/chunks) |
@@ -74,5 +74,5 @@ a browser check:
 3. ~~Document completeness — in-app PDF viewer, delete, per-document chat, tabs~~ (done)
 4. ~~Onboarding / welcome — rebuilt as lifestage → intents → first document~~ (done)
 5. ~~Memory — read-only blocks, toggle, export, clear~~ (done; reflection needs a key)
-6. **Chat tools** — flashcard/quiz generation (needs the tool pipeline and a key).
+6. ~~Flashcard/quiz generation — endpoint + document buttons, tested with an injected generator~~ (done; the chat *tool card* variant is still missing)
 7. **Blocked**: payments, admin, OCR — decide first, then build.

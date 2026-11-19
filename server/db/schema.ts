@@ -480,6 +480,9 @@ export const quizQuestions = pgTable(
     questionReferences: jsonb('question_references'),
     options: text('options').array().notNull(),
     hint: text('hint'),
+    /** 0-based index of the correct option. The old model tracked it only in the
+     *  chat tool payload, so persisted quizzes could not be graded. */
+    answer: integer('answer'),
     answerExplanations: text('answer_explanations').array(),
     vote: text('vote'),
   },

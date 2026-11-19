@@ -90,6 +90,25 @@ const retrievedChunks = [
 const { app } = createApp({
   clientFactory: (userId: string | null): HonoDataClient => createPostgresDataClient(userId),
   aiChat: { retrieve: async () => retrievedChunks },
+  // Generation is a model call; the persistence around it is what this covers.
+  generate: async ({ kind, count }) =>
+    kind === 'flashcards'
+      ? {
+          cards: Array.from({ length: count }, (_, i) => ({
+            title: `Card ${i + 1}`,
+            content: `Answer ${i + 1}`,
+          })),
+        }
+      : {
+          questions: [
+            {
+              question: 'What does the cell make?',
+              options: ['ATP', 'DNA', 'Sugar', 'Light'],
+              answer: 0,
+              explanations: ['Mitochondria produce ATP.'],
+            },
+          ],
+        },
 });
 
 const createdUserIds: string[] = [];
@@ -355,6 +374,43 @@ suite('chat slice over HTTP (real Postgres + RLS)', () => {
       delete process.env.RESET_LINKS_FILE;
       await rm(logFile, { force: true });
     }
+  });
+
+  it('generates flashcards and a gradable quiz from a chat', async () => {
+    const cards = await app.request('/api/ai/generate', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ kind: 'flashcards', chatUuid, count: 3 }),
+    });
+    expect(cards.status).toBe(200);
+    const cardsBody = (await cards.json()) as {
+      created: number;
+      flashcards: Array<{ title: string; chatUuid: string }>;
+    };
+    expect(cardsBody.created).toBe(3);
+    expect(cardsBody.flashcards[0].chatUuid).toBe(chatUuid);
+
+    const quiz = await app.request('/api/ai/generate', {
+      method: 'POST',
+      headers: as(userA.cookie),
+      body: JSON.stringify({ kind: 'quiz', chatUuid, count: 3 }),
+    });
+    expect(quiz.status).toBe(200);
+    const quizBody = (await quiz.json()) as {
+      quiz: { quizUuid: string; questionCount: number };
+      questions: Array<{ answer: number | null; options: string[] }>;
+    };
+    expect(quizBody.quiz.questionCount).toBe(1);
+    // The old model never stored the correct index; a quiz without it cannot be graded.
+    expect(quizBody.questions[0].answer).toBe(0);
+
+    // Another user cannot ask for it: the chat is not theirs.
+    const foreign = await app.request('/api/ai/generate', {
+      method: 'POST',
+      headers: as(userB.cookie),
+      body: JSON.stringify({ kind: 'flashcards', chatUuid }),
+    });
+    expect(foreign.status).toBe(400);
   });
 
   it('enforces isolation in Postgres itself (RLS, not just the route)', async () => {

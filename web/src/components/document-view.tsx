@@ -87,6 +87,58 @@ function DocumentChat({
   );
 }
 
+/** Generation needs a model; the button says so instead of doing nothing. */
+function GenerateButton({
+  kind,
+  documentUuid,
+  count,
+  onDone,
+}: {
+  kind: 'flashcards' | 'quiz';
+  documentUuid: string;
+  count: number;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<number | null>(null);
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3">
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          const res = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ kind, documentUuid, count }),
+          });
+          const body = (await res.json().catch(() => ({}))) as {
+            created?: number;
+            error?: string;
+          };
+          setBusy(false);
+          if (!res.ok) {
+            setError(body.error ?? `HTTP ${res.status}`);
+            return;
+          }
+          setCreated(body.created ?? 0);
+          onDone();
+        }}
+        className="rounded-xl bg-curio-green px-3 py-1.5 text-sm text-white disabled:opacity-40"
+      >
+        {busy ? 'Generating…' : kind === 'flashcards' ? `Generate ${count} flashcards` : `Generate a ${count}-question quiz`}
+      </button>
+      {created !== null && (
+        <span className="text-xs text-headers">Created {created} item(s).</span>
+      )}
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </div>
+  );
+}
+
 function Section({ children }: { children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-chat-panel-border bg-chat-panel p-5">
@@ -269,6 +321,12 @@ export function DocumentView({
 
         {tab === 'Flashcards' && (
           <Section>
+            <GenerateButton
+              kind="flashcards"
+              documentUuid={document.documentUuid}
+              count={8}
+              onDone={() => void window.location.reload()}
+            />
             <div className="space-y-2">
               {flashcards.slice(0, 100).map((card) => (
                 <details
@@ -295,6 +353,12 @@ export function DocumentView({
 
         {tab === 'Quiz' && (
           <Section>
+            <GenerateButton
+              kind="quiz"
+              documentUuid={document.documentUuid}
+              count={5}
+              onDone={() => void window.location.reload()}
+            />
             <div className="space-y-2">
               {quizzes.map((quiz) => (
                 <div

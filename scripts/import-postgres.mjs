@@ -347,6 +347,7 @@ const SPECS = [
       questionReferences: r.questionReferences ?? null,
       options: arr(r.options),
       hint: r.hint ?? null,
+      answer: num(r.answer),
       answerExplanations: arr(r.answerExplanations),
       vote: r.vote ?? null,
     }),

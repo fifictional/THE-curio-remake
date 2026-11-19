@@ -31,6 +31,7 @@ import {
   onboardingValidate,
   saveOnboarding,
 } from './routes/account';
+import { createGenerateRoutes, generateValidate, type Generator } from './routes/generate';
 import {
   clearMemory,
   exportMemory,
@@ -53,6 +54,8 @@ export interface AppOptions {
   clientFactory?: (userId: string | null) => HonoDataClient;
   /** Retrieval seam for /aiChat. Tests inject chunks; production uses Qdrant. */
   aiChat?: AiChatDeps;
+  /** Generation seam for /api/ai/generate. Tests inject a fake model. */
+  generate?: Generator;
 }
 
 export function createApp(opts: AppOptions = {}) {
@@ -233,6 +236,9 @@ export function createApp(opts: AppOptions = {}) {
   app.delete('/api/spaces/:spaceUuid/members/:userUuid', requireAuth, removeMember);
 
   app.post('/api/account/onboarding', requireAuth, onboardingValidate, saveOnboarding);
+
+  const generate = createGenerateRoutes(opts.generate);
+  app.post('/api/ai/generate', requireAuth, generateValidate, generate.handler);
 
   // Memory: read + toggle + export + clear. Writing new blocks needs a model.
   app.get('/api/account/memory', requireAuth, getMemory);
