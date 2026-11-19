@@ -26,6 +26,12 @@ import { createDocument, createDocumentValidate } from './routes/documents';
 import { limits } from './middleware/rate-limit';
 import { requireAuth } from './middleware/require-auth';
 import { deleteAccount, exportAccount } from './routes/account';
+import {
+  inviteMember,
+  inviteValidate,
+  listMembers,
+  removeMember,
+} from './routes/spaces';
 import type { HonoEnv } from './types';
 
 export interface AppOptions {
@@ -184,6 +190,15 @@ export function createApp(opts: AppOptions = {}) {
    */
   app.post('/db', handleDbRequest);
   app.get('/db/health', (c) => c.json({ ok: true, models: modelCount }));
+
+  /*
+   * Folder membership (invite / list / remove) — under `/api/` on purpose:
+   * `/spaces/<uuid>` is also an app route, so it must not be proxied wholesale
+   * (the same trap `/me` set for `/metadata`).
+   */
+  app.get('/api/spaces/:spaceUuid/members', requireAuth, listMembers);
+  app.post('/api/spaces/:spaceUuid/members', requireAuth, inviteValidate, inviteMember);
+  app.delete('/api/spaces/:spaceUuid/members/:userUuid', requireAuth, removeMember);
 
   app.get('/account/export', requireAuth, exportAccount);
   app.delete('/account', requireAuth, limits.account, deleteAccount);

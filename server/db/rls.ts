@@ -28,9 +28,6 @@ import 'dotenv/config';
 import { ownerSql as sql } from './owner-client';
 
 const tables = [
-  'spaces',
-  'documents',
-  'chats',
   'flashcards',
   'questions',
   'space_users',
@@ -262,6 +259,59 @@ async function main() {
     )
   `);
   console.log('  rls  messages (via chats)');
+
+  /*
+   * Shared folders.
+   *
+   * A folder is visible to its owner *and* to anyone with a `space_users` row.
+   * The subquery is safe from policy recursion because `space_users` itself is
+   * scoped by its own `user_uuid`, so it exposes only the caller's memberships.
+   * Editors (level <= 1) may write inside the folder; viewers (2) may only read.
+   */
+  const membership = (table: string) => `
+    exists (
+      select 1 from space_users su
+      where su.space_uuid = ${table}.space_uuid
+        and su.user_uuid = current_setting('app.user_id', true)::uuid
+    )`;
+  const editor = (table: string) => `
+    exists (
+      select 1 from space_users su
+      where su.space_uuid = ${table}.space_uuid
+        and su.user_uuid = current_setting('app.user_id', true)::uuid
+        and su.level <= 1
+    )`;
+
+  await sql.unsafe('alter table spaces enable row level security');
+  await sql.unsafe('alter table spaces force row level security');
+  await sql.unsafe('drop policy if exists own_rows on spaces');
+  await sql.unsafe(`
+    create policy own_rows on spaces
+    using (
+      user_uuid = current_setting('app.user_id', true)::uuid
+      or ${membership('spaces').replaceAll('spaces.space_uuid', 'spaces.space_uuid')}
+    )
+    with check (user_uuid = current_setting('app.user_id', true)::uuid)
+  `);
+  console.log('  rls  spaces (owner or member)');
+
+  for (const table of ['documents', 'chats'] as const) {
+    await sql.unsafe(`alter table ${table} enable row level security`);
+    await sql.unsafe(`alter table ${table} force row level security`);
+    await sql.unsafe(`drop policy if exists own_rows on ${table}`);
+    await sql.unsafe(`
+      create policy own_rows on ${table}
+      using (
+        user_uuid = current_setting('app.user_id', true)::uuid
+        or ${membership(table)}
+      )
+      with check (
+        user_uuid = current_setting('app.user_id', true)::uuid
+        or ${editor(table)}
+      )
+    `);
+    console.log(`  rls  ${table} (owner, member may read, editor may write)`);
+  }
 
   /*
    * `metadata` is polymorphic: a key/value row pointing at a user, chat or

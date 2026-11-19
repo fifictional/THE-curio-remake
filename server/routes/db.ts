@@ -83,9 +83,25 @@ function cacheSet(key: string, value: unknown): void {
   readCache.set(key, { at: Date.now(), value });
 }
 
-function cacheInvalidateModel(model: string): void {
+export function cacheInvalidateModel(model: string): void {
+  /*
+   * Membership changes alter what OTHER users can see (a folder appearing in an
+   * invitee's list), so writing `SpaceUsers` has to clear the caches of the
+   * models whose visibility it controls. A 2s TTL hides that, but "hidden by
+   * timing" is still wrong.
+   */
+  const affected =
+    model === 'SpaceUsers'
+      ? new Set(['SpaceUsers', 'Space', 'Document', 'Chat', 'Flashcard', 'Quiz'])
+      : new Set([model]);
+
   for (const key of readCache.keys()) {
-    if (key.includes(`|${model}|`)) readCache.delete(key);
+    for (const name of affected) {
+      if (key.includes(`|${name}|`)) {
+        readCache.delete(key);
+        break;
+      }
+    }
   }
 }
 
@@ -270,7 +286,24 @@ export async function handleDbRequest(c: Context<HonoEnv>): Promise<Response> {
           if (column in columnMap && values[column] == null) values[column] = identity.sub;
         }
         const rows = (await query.insert(table).values(values).returning()) as unknown[];
-        return rows[0];
+        const created = rows[0] as Record<string, unknown> | undefined;
+
+        /*
+         * A folder created here must also record its owner, exactly as the old
+         * app did: membership is what sharing and the sidebar read from, and a
+         * folder without an owner row cannot be invited into.
+         */
+        if (body.model === 'Space' && created) {
+          await query.insert(spaceUsers).values({
+            spaceUsersUuid: crypto.randomUUID(),
+            spaceUuid: created.spaceUuid as string,
+            userUuid: identity.sub,
+            level: 0,
+            levelCreatedAt: `0#${new Date().toISOString()}`,
+          });
+        }
+
+        return created;
       }
 
       if (body.method === 'update') {

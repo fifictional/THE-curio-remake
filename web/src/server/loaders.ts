@@ -18,6 +18,7 @@ import type {
   Message,
   ProfileRow,
   QuizRow,
+  SpaceMember,
   SessionUser,
   SpaceRow,
 } from '../types';
@@ -113,13 +114,31 @@ export interface SpacePageData {
   space: SpaceRow | null;
   chats: Chat[];
   documents: DocumentRow[];
+  members: SpaceMember[];
+  myLevel: number | null;
 }
 
 export async function loadSpaceData(data: { spaceId: string }): Promise<SpacePageData> {
   const session = await apiFetch<{ user: SessionUser }>('/me');
-  if (!session?.user) return { user: null, space: null, chats: [], documents: [] };
+  if (!session?.user) {
+    return {
+      user: null,
+      space: null,
+      chats: [],
+      documents: [],
+      members: [],
+      myLevel: null,
+    };
+  }
   if (!isUuid(data.spaceId)) {
-    return { user: session.user, space: null, chats: [], documents: [] };
+    return {
+      user: session.user,
+      space: null,
+      chats: [],
+      documents: [],
+      members: [],
+      myLevel: null,
+    };
   }
 
   const space = await apiFetch<{ data: SpaceRow | null }>('/db', {
@@ -131,7 +150,16 @@ export async function loadSpaceData(data: { spaceId: string }): Promise<SpacePag
     }),
   });
 
-  if (!space?.data) return { user: session.user, space: null, chats: [], documents: [] };
+  if (!space?.data) {
+    return {
+      user: session.user,
+      space: null,
+      chats: [],
+      documents: [],
+      members: [],
+      myLevel: null,
+    };
+  }
 
   const [chats, documents] = await Promise.all([
     apiFetch<{ data: Chat[] }>('/db', {
@@ -154,11 +182,21 @@ export async function loadSpaceData(data: { spaceId: string }): Promise<SpacePag
     }),
   ]);
 
+  // Membership is read through the API (it joins user emails; `space_users` is
+  // self-only under RLS, which is what keeps the policy cycle-free).
+  const membership = await apiFetch<{ members?: SpaceMember[] }>(
+    `/api/spaces/${data.spaceId}/members`,
+  );
+  const members = membership?.members ?? [];
+  const mine = members.find((member) => member.userUuid === session.user.sub);
+
   return {
     user: session.user,
     space: space.data,
     chats: chats?.data ?? [],
     documents: documents?.data ?? [],
+    members,
+    myLevel: mine?.level ?? null,
   };
 }
 

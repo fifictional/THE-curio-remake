@@ -145,11 +145,25 @@ describe('loadSpace', () => {
     expect(apiFetch.mock.calls.map((c) => String(c[0]))).not.toContain('/db');
   });
 
-  it('returns the folder with its chats and documents', async () => {
-    mockBridge({
-      Space: { data: { spaceUuid: DOC, name: 'Biology' } },
-      Chat: { data: [{ chatUuid: CHAT_A }] },
-      Document: { data: [{ documentUuid: DOC }] },
+  it('returns the folder with its chats, documents and members', async () => {
+    apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/me') return { user: USER };
+      if (path === `/api/spaces/${DOC}/members`) {
+        return {
+          members: [
+            { userUuid: USER.sub, email: 'a@curio.test', level: 0 },
+            { userUuid: 'other', email: 'b@curio.test', level: 2 },
+          ],
+        };
+      }
+      if (path === '/db') {
+        const body = JSON.parse(String(init?.body)) as { model: string; method: string };
+        if (body.model === 'Space') return { data: { spaceUuid: DOC, name: 'Biology' } };
+        if (body.model === 'Chat') return { data: [{ chatUuid: CHAT_A }] };
+        if (body.model === 'Document') return { data: [{ documentUuid: DOC }] };
+        return { data: [] };
+      }
+      return { data: null };
     });
 
     const data = await loadSpace({ spaceId: DOC });
@@ -157,6 +171,9 @@ describe('loadSpace', () => {
     expect(data.space?.name).toBe('Biology');
     expect(data.chats).toHaveLength(1);
     expect(data.documents).toHaveLength(1);
+    expect(data.members).toHaveLength(2);
+    // The caller's own level decides whether the share controls render.
+    expect(data.myLevel).toBe(0);
   });
 });
 

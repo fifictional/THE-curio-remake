@@ -11,6 +11,13 @@ export const Route = createFileRoute('/spaces/$spaceId')({
 function SpacePage() {
   const data = Route.useLoaderData();
   return (
-    <Space user={data.user} space={data.space} chats={data.chats} documents={data.documents} />
+    <Space
+      user={data.user}
+      space={data.space}
+      chats={data.chats}
+      documents={data.documents}
+      members={data.members}
+      myLevel={data.myLevel}
+    />
   );
 }

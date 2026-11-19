@@ -97,3 +97,11 @@ export interface MetadataRow {
   value?: string | null;
   createdAt?: string | null;
 }
+
+export interface SpaceMember {
+  userUuid: string;
+  email?: string | null;
+  name?: string | null;
+  level: number;
+  createdAt?: string | null;
+}
