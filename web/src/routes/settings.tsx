@@ -10,5 +10,5 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsPage() {
   const data = Route.useLoaderData();
-  return <Settings user={data.user} profile={data.profile} />;
+  return <Settings user={data.user} profile={data.profile} memory={data.memory} />;
 }

@@ -9,6 +9,7 @@
 
 import type {
   Chat,
+  MemoryState,
   MetadataRow,
   SubscriptionRow,
   CitationRow,
@@ -16,6 +17,7 @@ import type {
   DocumentSummaryRow,
   FlashcardRow,
   Message,
+  MemoryBlockView,
   ProfileRow,
   QuizRow,
   SpaceMember,
@@ -349,22 +351,30 @@ export async function loadDocumentData(data: {
 export interface SettingsData {
   user: SessionUser | null;
   profile: ProfileRow | null;
+  memory: MemoryState;
 }
 
 export async function loadSettingsData(): Promise<SettingsData> {
   const session = await apiFetch<{ user: SessionUser }>('/me');
-  if (!session?.user) return { user: null, profile: null };
+  if (!session?.user) return { user: null, profile: null, memory: { enabled: false, blocks: [] } };
 
-  const profile = await apiFetch<{ data: ProfileRow | null }>('/db', {
-    method: 'POST',
-    body: JSON.stringify({
-      model: 'UserProfile',
-      method: 'get',
-      args: { id: session.user.sub },
+  const [profile, memory] = await Promise.all([
+    apiFetch<{ data: ProfileRow | null }>('/db', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'UserProfile',
+        method: 'get',
+        args: { id: session.user.sub },
+      }),
     }),
-  });
+    apiFetch<{ enabled?: boolean; blocks?: MemoryBlockView[] }>('/api/account/memory'),
+  ]);
 
-  return { user: session.user, profile: profile?.data ?? null };
+  return {
+    user: session.user,
+    profile: profile?.data ?? null,
+    memory: { enabled: memory?.enabled ?? false, blocks: memory?.blocks ?? [] },
+  };
 }
 
 export interface ProfilePageData {

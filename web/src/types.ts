@@ -106,3 +106,20 @@ export interface SpaceMember {
   level: number;
   createdAt?: string | null;
 }
+
+export interface MemoryBlockView {
+  memoryBlockUuid: string;
+  scope?: string | null;
+  blockType?: string | null;
+  topic?: string | null;
+  subject?: string | null;
+  description?: string | null;
+  evidence?: string | null;
+  askedCount?: number | null;
+  updatedAt?: string | null;
+}
+
+export interface MemoryState {
+  enabled: boolean;
+  blocks: MemoryBlockView[];
+}

@@ -166,6 +166,19 @@ Dev result (2026-11-16): 356 referenced keys → 299 copied (204 MB), 57 referen
 but **absent from the bucket** (all `documents.original_key`), 1,387 objects in
 the prefixes that nothing references.
 
+## 2f. Repair split JSON payloads
+
+Some `MemoryBlock.payload` rows were stored by Amplify as a character map (and a few
+were split twice, with extra keys added afterwards). The importer repairs what it
+can; re-apply the rule to whatever is already loaded:
+
+```bash
+node scripts/repair-memory-payloads.mjs --dry-run   # count first
+node scripts/repair-memory-payloads.mjs             # idempotent
+```
+
+Dev: 46 of 66 blocks needed it. Without this, the memory UI shows garbage.
+
 ## 3. Verify
 
 ```sql

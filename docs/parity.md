@@ -48,7 +48,7 @@ Last updated: 2026-11-19.
 | Move chat/document between folders | yes | **partial** — documents yes, chats no |
 | Folder rename / delete | yes | **missing** |
 | Folder **sharing** (owner/editor/viewer via `space_users`) | yes | **done** — invite by email, levels enforced by RLS (viewers read, editors write), removal; `spaces`/`documents`/`chats` policies admit members |
-| Memory (persistent learner memory): toggle, blocks, export, backfill | yes | **missing** — tables and migrated rows exist, no UI, no bridge models |
+| Memory (persistent learner memory): toggle, blocks, export, backfill | yes | **partial** — read-only: blocks (gaps / mastered), on-off switch, JSON export, clear. Writing new blocks needs the reflection agent (a model), so backfill is not there |
 | Global search (documents, chats) | via library search | **partial** — library search only |
 | In-app PDF viewer | yes | **done** (browser engine via `/files`; other types fall back to a download link) |
 | Attachments / image messages | yes | **missing** |
@@ -73,6 +73,6 @@ a browser check:
 2. **Chat actions** — rename, delete, move to folder, copy message.
 3. ~~Document completeness — in-app PDF viewer, delete, per-document chat, tabs~~ (done)
 4. ~~Onboarding / welcome — rebuilt as lifestage → intents → first document~~ (done)
-5. **Memory** — bridge models + toggle/export UI (real value needs an AI key).
+5. ~~Memory — read-only blocks, toggle, export, clear~~ (done; reflection needs a key)
 6. **Chat tools** — flashcard/quiz generation (needs the tool pipeline and a key).
 7. **Blocked**: payments, admin, OCR — decide first, then build.

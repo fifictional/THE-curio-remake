@@ -45,28 +45,7 @@ const arr = (v) => (Array.isArray(v) ? v : []);
 const num = (v) => (typeof v === 'number' ? v : v === null || v === undefined ? null : Number(v));
 const bool = (v) => (typeof v === 'boolean' ? v : null);
 
-/**
- * Production contains MemoryBlock rows where a JSON *string* was stored and
- * Amplify split it into a character-indexed map: {"0":"{","1":"\"",…}.
- * Detect that shape, rebuild the string in numeric order, parse it.
- */
-function repairPayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
-  const keys = Object.keys(payload);
-  if (keys.length < 20) return payload;
-  if (!keys.every((k) => /^\d+$/.test(k))) return payload;
-
-  const rebuilt = keys
-    .sort((a, b) => Number(a) - Number(b))
-    .map((k) => (typeof payload[k] === 'string' ? payload[k] : ''))
-    .join('');
-
-  try {
-    return JSON.parse(rebuilt);
-  } catch {
-    return { __unparsed: rebuilt };
-  }
-}
+import { repairPayload } from './lib/repair-payload.mjs';
 
 /** `"0#2026-01-27T10:15:16.629Z"` → "0#2026-01-27T10:15:16.629Z" (kept verbatim). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

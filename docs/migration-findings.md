@@ -133,8 +133,16 @@ keys on `UserRequest`/`Flashcard`/`Question`/`Purchase`, and the plain
   character-indexed map: `{"0":"{","1":"\"","2":"e",…,"224":"}"}` — 225 keys spelling out the
   real JSON. Something wrote a JSON *string* into a `json` field and Amplify split it per
   character. Two of three sampled blocks are affected.
-  → The importer must detect this shape (`keys are integers`) and rebuild the string by
-  sorting numerically, then `JSON.parse` it. Rows that fail stay quarantined, not dropped.
+  → Detect the shape (`keys are integers`) and rebuild by sorting numerically, then
+  `JSON.parse`. Rows that fail stay quarantined, not dropped.
+- **…and it is worse than one level.** 66 dev blocks, and 46 held *both* the character map
+  **and** real keys written afterwards (`documentUuid`, `askedCount`, `topic`), which made
+  the "all keys are integers" test fail and the repair silently skip them. 37 of those were
+  split **twice** (the rebuilt string was itself another character map, 250–2,500 keys).
+  → Repair repeats until the value stops changing, and merges the named keys at every
+  level. `scripts/repair-memory-payloads.mjs` re-applies it to rows already imported
+  (idempotent, `--dry-run`); the importer uses the same helper
+  (`scripts/lib/repair-payload.mjs`). After the run: 66/66 blocks are valid objects.
 - **`MockExam.questions[].answer` contains out-of-range values** (e.g. `-15` where options
   are 4). Treat as unverified data: keep the row, flag it, don't crash the loader.
 - **`Document.originalKey` often points at an object that does not exist.** 57 of the 139

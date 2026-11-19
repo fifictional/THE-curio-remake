@@ -186,7 +186,11 @@ describe('loadLibrary and loadSettings', () => {
       documents: [],
       spaces: [],
     });
-    expect(await loadSettings()).toEqual({ user: null, profile: null });
+    expect(await loadSettings()).toEqual({
+      user: null,
+      profile: null,
+      memory: { enabled: false, blocks: [] },
+    });
   });
 
   it('loads the library and the profile', async () => {
@@ -195,6 +199,14 @@ describe('loadLibrary and loadSettings', () => {
       Space: { data: [{ spaceUuid: DOC, name: 'Folder' }] },
       UserProfile: { data: { id: USER.sub, name: 'Test' } },
     });
+    // `/me` and `/api/account/memory` are not `/db` calls: answer them directly.
+    const bridge = apiFetch.getMockImplementation()!;
+    apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/api/account/memory') {
+        return { enabled: true, blocks: [{ memoryBlockUuid: 'b1', topic: 'Algebra' }] };
+      }
+      return bridge(path, init);
+    });
 
     const library = await loadLibrary();
     expect(library.documents).toHaveLength(1);
@@ -202,6 +214,8 @@ describe('loadLibrary and loadSettings', () => {
 
     const settings = await loadSettings();
     expect(settings.profile?.name).toBe('Test');
+    expect(settings.memory.enabled).toBe(true);
+    expect(settings.memory.blocks).toHaveLength(1);
   });
 });
 

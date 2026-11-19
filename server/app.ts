@@ -32,6 +32,13 @@ import {
   saveOnboarding,
 } from './routes/account';
 import {
+  clearMemory,
+  exportMemory,
+  getMemory,
+  memoryToggleValidate,
+  setMemoryEnabled,
+} from './routes/memory';
+import {
   inviteMember,
   inviteValidate,
   listMembers,
@@ -226,6 +233,12 @@ export function createApp(opts: AppOptions = {}) {
   app.delete('/api/spaces/:spaceUuid/members/:userUuid', requireAuth, removeMember);
 
   app.post('/api/account/onboarding', requireAuth, onboardingValidate, saveOnboarding);
+
+  // Memory: read + toggle + export + clear. Writing new blocks needs a model.
+  app.get('/api/account/memory', requireAuth, getMemory);
+  app.patch('/api/account/memory', requireAuth, memoryToggleValidate, setMemoryEnabled);
+  app.delete('/api/account/memory', requireAuth, clearMemory);
+  app.get('/api/account/memory/export', requireAuth, exportMemory);
   app.get('/account/export', requireAuth, exportAccount);
   app.delete('/account', requireAuth, limits.account, deleteAccount);
 
