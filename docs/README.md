@@ -2,6 +2,9 @@
 
 Start here. Everything else is detail.
 
+**Picking this up cold? Read [`HANDOFF.md`](HANDOFF.md) first** — run/verify
+commands, the map, what is done, what is open, and the traps that cost time.
+
 ## The three that matter
 
 | Read this | When |
